@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>Snack Catcher</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <main class="game-page">
+    <section class="game-card" aria-label="Snack Catcher game">
+      <div class="top-bar">
+        <div>
+          <p class="eyebrow">Emoji Arcade</p>
+          <h1>Snack Catcher</h1>
+        </div>
+
+        <div class="score-box" aria-live="polite">
+          <span>Score</span>
+          <strong id="score">0</strong>
+        </div>
+      </div>
+
+      <div id="gameArea" class="game-area">
+        <div class="cloud cloud-one"></div>
+        <div class="cloud cloud-two"></div>
+
+        <div id="startScreen" class="screen">
+          <h2>Catch the snacks!</h2>
+          <p>Drag left and right, or use the arrow keys. Watch out for bombs.</p>
+          <button id="startButton" type="button">Start Game</button>
+        </div>
+
+        <div id="gameOverScreen" class="screen hidden">
+          <h2>Game Over</h2>
+          <p>Your score was <strong id="finalScore">0</strong>.</p>
+          <button id="restartButton" type="button">Play Again</button>
+        </div>
+
+        <div id="basket" class="basket" aria-label="basket">
+          <img src="char.png" alt="player" onerror="this.remove(); this.parentElement.textContent = '🧺';">
+        </div>
+      </div>
+
+      <p class="hint">Drag left/right or use ← and →</p>
+    </section>
+  </main>
+
+  <script src="game.js"></script>
+</body>
+</html>
