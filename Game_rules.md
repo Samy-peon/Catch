@@ -10,6 +10,7 @@ Whenever the game changes, this file should be updated so it matches the latest 
 - The game starts with `2` lives.
 - The game uses local sound effects for snack, bomb, and form-change events.
 - The game also uses local sound effects for bomb drops and the congratulations screen.
+- The game uses `background_music.mp3` as looping background music.
 - Life gains and life losses show floating text effects inside the game area.
 - The game ends in a win when the total score reaches `100`.
 - The start screen tells the player to score `100` points to beat the level.
@@ -115,6 +116,7 @@ Whenever the game changes, this file should be updated so it matches the latest 
 ## Controls and flow
 
 - The game has a start button.
+- The background music starts from the start screen and continues through gameplay, game over, and the congratulations screen.
 - The game has a play-again button after game over.
 - The game has a congratulations screen when the total score reaches `100`.
 - When the congratulations screen appears, play `cheer.m4a` `3` times.

@@ -25,6 +25,7 @@ const explodeSound = createSound("Explode.m4a");
 const changeSound = createSound("Change.m4a");
 const cheerSound = createSound("cheer.m4a");
 const bombDropSound = createSound(["Dropbomb.m4a", "Dropbomb拷貝.m4a"]);
+const backgroundMusic = createSound("background_music.mp3");
 
 // ----- Game settings -----
 const snacks = ["🍓", "🍪", "🍩", "🍎"];
@@ -93,6 +94,8 @@ resetBasket();
 updateLives();
 updatePlayerImage();
 updateSnackScoreboard();
+setupBackgroundMusic();
+playBackgroundMusic();
 
 // ----- Controls -----
 document.addEventListener("keydown", function (event) {
@@ -135,6 +138,7 @@ exitButton.addEventListener("click", exitGame);
 
 // ----- Main game flow -----
 function startGame() {
+  playBackgroundMusic();
   stopRepeatedSounds();
   resetGameState();
   isPlaying = true;
@@ -152,6 +156,7 @@ function startGame() {
 
 function endGame() {
   isPlaying = false;
+  playBackgroundMusic();
   stopRepeatedSounds();
   clearInterval(spawnTimer);
   cancelAnimationFrame(animationId);
@@ -164,6 +169,7 @@ function endGame() {
 
 function endGameWithWin() {
   isPlaying = false;
+  playBackgroundMusic();
   stopRepeatedSounds();
   clearInterval(spawnTimer);
   cancelAnimationFrame(animationId);
@@ -176,6 +182,7 @@ function endGameWithWin() {
 }
 
 function exitGame() {
+  playBackgroundMusic();
   stopRepeatedSounds();
   clearInterval(spawnTimer);
   cancelAnimationFrame(animationId);
@@ -189,6 +196,7 @@ function exitGame() {
 }
 
 function continueFromWin() {
+  playBackgroundMusic();
   stopRepeatedSounds();
   resetGameState();
   startScreen.classList.remove("hidden");
@@ -822,6 +830,14 @@ function createSound(source) {
   return sound;
 }
 
+function setupBackgroundMusic() {
+  backgroundMusic.loop = true;
+  backgroundMusic.volume = 0.34;
+
+  document.addEventListener("pointerdown", playBackgroundMusic, { once: true });
+  document.addEventListener("keydown", playBackgroundMusic, { once: true });
+}
+
 function playSound(sound) {
   if (!sound) {
     return;
@@ -830,6 +846,16 @@ function playSound(sound) {
   sound.currentTime = 0;
   sound.play().catch(function () {
     // Ignore autoplay or transient playback failures.
+  });
+}
+
+function playBackgroundMusic() {
+  if (!backgroundMusic.paused) {
+    return;
+  }
+
+  backgroundMusic.play().catch(function () {
+    // Ignore autoplay failures until the player interacts with the page.
   });
 }
 
