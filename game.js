@@ -5,31 +5,94 @@
 const gameArea = document.getElementById("gameArea");
 const basket = document.getElementById("basket");
 const scoreDisplay = document.getElementById("score");
+const livesDisplay = document.getElementById("lives");
+const strawberryScoreDisplay = document.getElementById("score-strawberry");
+const candyScoreDisplay = document.getElementById("score-candy");
+const donutScoreDisplay = document.getElementById("score-donut");
+const appleScoreDisplay = document.getElementById("score-apple");
 const finalScoreDisplay = document.getElementById("finalScore");
 const startScreen = document.getElementById("startScreen");
 const gameOverScreen = document.getElementById("gameOverScreen");
+const winScreen = document.getElementById("winScreen");
+const fireHint = document.getElementById("fireHint");
+const fireTimerDisplay = document.getElementById("fireTimer");
 const startButton = document.getElementById("startButton");
 const restartButton = document.getElementById("restartButton");
+const continueButton = document.getElementById("continueButton");
+const exitButton = document.getElementById("exitButton");
+const eatSound = createSound("Eat.m4a");
+const explodeSound = createSound("Explode.m4a");
+const changeSound = createSound("Change.m4a");
+const cheerSound = createSound("cheer.m4a");
+const bombDropSound = createSound(["Dropbomb.m4a", "Dropbomb拷貝.m4a"]);
 
 // ----- Game settings -----
 const snacks = ["🍓", "🍪", "🍩", "🍎"];
-const basketSpeed = 8;
+const baseBasketSpeed = 8;
 const itemSize = 48;
+const baseBombSpeed = 3.6;
+const baseBombChance = 0.22;
+const snackGoal = 5;
+const startingLives = 2;
+const lifeEffectLifetime = 3000;
+const formFlashDuration = 3000;
+const formFlashFrequency = 250;
+const floatingEffectSpeed = 3.6;
+const fireFormDuration = 15000;
+const winScore = 100;
+const starterPlayerImage = "eevee.png";
+const snackRewardImages = {
+  "🍓": "char.png",
+  "🍪": "leaf.png",
+  "🍩": "light.png",
+  "🍎": "fire.png"
+};
+const formSnackByImage = {
+  "char.png": "🍓",
+  "leaf.png": "🍪",
+  "light.png": "🍩",
+  "fire.png": "🍎"
+};
+const snackNames = {
+  "🍓": "草莓",
+  "🍪": "糖果",
+  "🍩": "甜甜圈",
+  "🍎": "蘋果"
+};
+const snackCountDisplays = {
+  "🍓": strawberryScoreDisplay,
+  "🍪": candyScoreDisplay,
+  "🍩": donutScoreDisplay,
+  "🍎": appleScoreDisplay
+};
 
 // ----- Game state -----
 let basketX = 0;
 let score = 0;
+let lives = startingLives;
+let snackScores = createEmptySnackScores();
+let lockedSnack = null;
+let currentPlayerImage = starterPlayerImage;
+let basketSpeedMultiplier = 1;
+let isBombImmune = false;
 let isPlaying = false;
 let leftPressed = false;
 let rightPressed = false;
 let fallingItems = [];
+let floatingEffects = [];
 let animationId;
 let spawnTimer;
 let lastFrameTime = 0;
 let activePointerId = null;
+let playerFlashUntil = 0;
+let fireFormEndsAt = 0;
+let repeatedSoundToken = 0;
 
 // Put the basket in the center when the page loads.
 resetBasket();
+updateLives();
+updatePlayerImage();
+updateSnackScoreboard();
 
 // ----- Controls -----
 document.addEventListener("keydown", function (event) {
@@ -67,21 +130,17 @@ gameArea.addEventListener("touchmove", function (event) {
 
 startButton.addEventListener("click", startGame);
 restartButton.addEventListener("click", startGame);
+continueButton.addEventListener("click", continueFromWin);
+exitButton.addEventListener("click", exitGame);
 
 // ----- Main game flow -----
 function startGame() {
-  score = 0;
+  stopRepeatedSounds();
+  resetGameState();
   isPlaying = true;
-  fallingItems.forEach(function (item) {
-    item.element.remove();
-  });
-  fallingItems = [];
-  lastFrameTime = 0;
-
-  resetBasket();
-  updateScore();
   startScreen.classList.add("hidden");
   gameOverScreen.classList.add("hidden");
+  winScreen.classList.add("hidden");
   document.body.classList.add("playing");
 
   clearInterval(spawnTimer);
@@ -93,12 +152,48 @@ function startGame() {
 
 function endGame() {
   isPlaying = false;
+  stopRepeatedSounds();
   clearInterval(spawnTimer);
   cancelAnimationFrame(animationId);
   finalScoreDisplay.textContent = score;
   document.body.classList.remove("playing");
   activePointerId = null;
+  fireHint.classList.add("hidden");
   gameOverScreen.classList.remove("hidden");
+}
+
+function endGameWithWin() {
+  isPlaying = false;
+  stopRepeatedSounds();
+  clearInterval(spawnTimer);
+  cancelAnimationFrame(animationId);
+  document.body.classList.remove("playing");
+  activePointerId = null;
+  fireHint.classList.add("hidden");
+  resetSnackBarsOnly();
+  winScreen.classList.remove("hidden");
+  playSoundTimes(cheerSound, 3);
+}
+
+function exitGame() {
+  stopRepeatedSounds();
+  clearInterval(spawnTimer);
+  cancelAnimationFrame(animationId);
+  isPlaying = false;
+  document.body.classList.remove("playing");
+  activePointerId = null;
+  resetGameState();
+  startScreen.classList.remove("hidden");
+  gameOverScreen.classList.add("hidden");
+  winScreen.classList.add("hidden");
+}
+
+function continueFromWin() {
+  stopRepeatedSounds();
+  resetGameState();
+  startScreen.classList.remove("hidden");
+  gameOverScreen.classList.add("hidden");
+  winScreen.classList.add("hidden");
 }
 
 function gameLoop(currentTime) {
@@ -114,10 +209,13 @@ function gameLoop(currentTime) {
   const deltaTime = (currentTime - lastFrameTime) / 16.67;
   lastFrameTime = currentTime;
 
+  updateFireTimer(currentTime);
   moveBasket(deltaTime);
   moveFallingItems(deltaTime);
+  moveFloatingEffects(deltaTime);
   checkCollisions();
   removeMissedItems();
+  updatePlayerFlash(currentTime);
 
   animationId = requestAnimationFrame(gameLoop);
 }
@@ -130,12 +228,14 @@ function resetBasket() {
 }
 
 function moveBasket(deltaTime) {
+  const currentBasketSpeed = baseBasketSpeed * basketSpeedMultiplier;
+
   if (leftPressed) {
-    basketX -= basketSpeed * deltaTime;
+    basketX -= currentBasketSpeed * deltaTime;
   }
 
   if (rightPressed) {
-    basketX += basketSpeed * deltaTime;
+    basketX += currentBasketSpeed * deltaTime;
   }
 
   const maxX = gameArea.clientWidth - basket.offsetWidth;
@@ -190,18 +290,25 @@ function createFallingItem() {
   }
 
   const element = document.createElement("div");
-  const isBomb = Math.random() < 0.22;
-  const maxX = gameArea.clientWidth - itemSize;
+  const isBomb = Math.random() < getBombSpawnChance();
+  const bombDifficulty = getBombDifficulty();
+  const currentItemSize = isBomb ? itemSize * bombDifficulty.sizeMultiplier : itemSize;
+  const maxX = gameArea.clientWidth - currentItemSize;
   const x = Math.random() * maxX;
+  const startY = -(currentItemSize + 4);
+  const snack = isBomb ? null : pickRandomSnack();
 
   element.className = "falling-item";
   element.style.left = x + "px";
-  element.style.top = "-52px";
+  element.style.top = startY + "px";
+  element.style.width = currentItemSize + "px";
+  element.style.height = currentItemSize + "px";
 
   if (isBomb) {
     addBombImage(element);
+    playSound(bombDropSound);
   } else {
-    element.textContent = pickRandomSnack();
+    element.textContent = snack;
   }
 
   gameArea.appendChild(element);
@@ -209,9 +316,11 @@ function createFallingItem() {
   fallingItems.push({
     element: element,
     x: x,
-    y: -52,
-    speed: isBomb ? 3.6 : 2.8 + Math.random() * 1.6,
-    type: isBomb ? "bomb" : "snack"
+    y: startY,
+    size: currentItemSize,
+    speed: isBomb ? baseBombSpeed * bombDifficulty.speedMultiplier : 2.8 + Math.random() * 1.6,
+    type: isBomb ? "bomb" : "snack",
+    snack: snack
   });
 }
 
@@ -234,6 +343,10 @@ function addBombImage(element) {
 
 function moveFallingItems(deltaTime) {
   fallingItems.forEach(function (item) {
+    if (item.type === "bomb") {
+      applyBombDifficulty(item);
+    }
+
     item.y += item.speed * deltaTime;
     item.element.style.top = item.y + "px";
   });
@@ -249,14 +362,29 @@ function checkCollisions() {
 
     if (rectanglesTouch(basketRect, itemRect)) {
       if (item.type === "bomb") {
-        endGame();
+        handleBombCollision(item);
         return;
       }
 
       score += 1;
+      playSound(eatSound);
+      createScoreEffect("+1", "score-pickup", {
+        x: item.x + item.size / 2,
+        y: item.y
+      });
+      if (currentPlayerImage === "leaf.png") {
+        addFlowerMarker(item);
+      }
+
+      addSnackScore(item.snack, item);
       updateScore();
       removeItem(item);
       index -= 1;
+
+      if (score >= winScore) {
+        endGameWithWin();
+        return;
+      }
     }
   }
 }
@@ -274,12 +402,381 @@ function updateScore() {
   scoreDisplay.textContent = score;
 }
 
+function updateLives() {
+  livesDisplay.textContent = lives;
+}
+
+function createEmptySnackScores() {
+  return {
+    "🍓": 0,
+    "🍪": 0,
+    "🍩": 0,
+    "🍎": 0
+  };
+}
+
+function getBombDifficulty() {
+  if (score >= 90) {
+    return {
+      sizeMultiplier: 2.5,
+      speedMultiplier: 2
+    };
+  }
+
+  if (score >= 70) {
+    return {
+      sizeMultiplier: 2,
+      speedMultiplier: 1.5
+    };
+  }
+
+  if (score >= 50) {
+    return {
+      sizeMultiplier: 1.5,
+      speedMultiplier: 1.25
+    };
+  }
+
+  return {
+    sizeMultiplier: 1,
+    speedMultiplier: 1
+  };
+}
+
+function getBombSpawnChance() {
+  if (score >= 95) {
+    return 1 / 2;
+  }
+
+  if (score >= 85) {
+    return 1 / 3;
+  }
+
+  if (score >= 75) {
+    return 1 / 4;
+  }
+
+  return baseBombChance;
+}
+
+function applyBombDifficulty(item) {
+  const bombDifficulty = getBombDifficulty();
+  item.size = itemSize * bombDifficulty.sizeMultiplier;
+  item.speed = baseBombSpeed * bombDifficulty.speedMultiplier;
+  item.element.style.width = item.size + "px";
+  item.element.style.height = item.size + "px";
+  item.element.classList.toggle("spinning-bomb", score >= 80);
+  item.element.style.setProperty("--bomb-spin-duration", score >= 95 ? "1s" : "2s");
+
+  const maxX = gameArea.clientWidth - item.size;
+  item.x = Math.max(0, Math.min(item.x, maxX));
+  item.element.style.left = item.x + "px";
+}
+
+function addSnackScore(snack, item) {
+  if (!Object.prototype.hasOwnProperty.call(snackScores, snack)) {
+    return;
+  }
+
+  if (lockedSnack === snack) {
+    updateSnackScoreboard();
+    return;
+  }
+
+  snackScores[snack] += 1;
+  if (snackScores[snack] >= snackGoal) {
+    snackScores[snack] = snackGoal;
+    lockedSnack = snack;
+    activateSnackPower(snack);
+  }
+
+  updateSnackScoreboard();
+}
+
+function activateSnackPower(snack) {
+  if (currentPlayerImage !== snackRewardImages[snack]) {
+    playSound(changeSound);
+  }
+
+  setPlayerForm(snackRewardImages[snack], currentPlayerImage !== snackRewardImages[snack]);
+
+  if (snack === "🍓") {
+    lives += 1;
+    updateLives();
+    createLifeEffect("+1", "life-gain", getBasketCenterPoint());
+    return;
+  }
+}
+
+function updateSnackScoreboard() {
+  snacks.forEach(function (snack) {
+    const display = snackCountDisplays[snack];
+
+    if (display) {
+      const segments = display.querySelectorAll(".progress-segment");
+      display.classList.toggle("charged", lockedSnack === snack);
+
+      segments.forEach(function (segment, index) {
+        segment.classList.toggle("filled", index < snackScores[snack]);
+      });
+
+      display.setAttribute("aria-label", snackNames[snack] + " " + snackScores[snack] + " / " + snackGoal);
+    }
+  });
+}
+
+function addFlowerMarker(item) {
+  if (!item) {
+    return;
+  }
+
+  const flowerMarker = document.createElement("div");
+  flowerMarker.className = "flower-marker";
+  flowerMarker.textContent = "🌼";
+  flowerMarker.style.left = item.x + "px";
+  flowerMarker.style.top = item.y + "px";
+  gameArea.appendChild(flowerMarker);
+}
+
+function clearFlowerMarkers() {
+  gameArea.querySelectorAll(".flower-marker").forEach(function (flowerMarker) {
+    flowerMarker.remove();
+  });
+}
+
+function createLifeEffect(text, effectType, position) {
+  if (!position) {
+    return;
+  }
+
+  const effectElement = document.createElement("div");
+  effectElement.className = "floating-life-effect " + effectType;
+  effectElement.textContent = text;
+  effectElement.style.left = position.x + "px";
+  effectElement.style.top = position.y + "px";
+  gameArea.appendChild(effectElement);
+
+  floatingEffects.push({
+    element: effectElement,
+    x: position.x,
+    y: position.y,
+    speed: floatingEffectSpeed,
+    expiresAt: performance.now() + lifeEffectLifetime
+  });
+}
+
+function createScoreEffect(text, effectType, position) {
+  if (!position) {
+    return;
+  }
+
+  const effectElement = document.createElement("div");
+  effectElement.className = "floating-life-effect " + effectType;
+  effectElement.textContent = text;
+  effectElement.style.left = position.x + "px";
+  effectElement.style.top = position.y + "px";
+  gameArea.appendChild(effectElement);
+
+  floatingEffects.push({
+    element: effectElement,
+    x: position.x,
+    y: position.y,
+    speed: floatingEffectSpeed,
+    expiresAt: performance.now() + lifeEffectLifetime
+  });
+}
+
+function moveFloatingEffects(deltaTime) {
+  const now = performance.now();
+
+  floatingEffects.slice().forEach(function (effect) {
+    effect.y -= effect.speed * deltaTime;
+    effect.element.style.top = effect.y + "px";
+
+    if (effect.y < -40 || now >= effect.expiresAt) {
+      removeFloatingEffect(effect);
+    }
+  });
+}
+
+function removeFloatingEffect(effectToRemove) {
+  effectToRemove.element.remove();
+  floatingEffects = floatingEffects.filter(function (effect) {
+    return effect !== effectToRemove;
+  });
+}
+
+function clearFloatingEffects() {
+  floatingEffects.forEach(function (effect) {
+    effect.element.remove();
+  });
+  floatingEffects = [];
+}
+
+function resetSnackBarsOnly() {
+  snackScores = createEmptySnackScores();
+  lockedSnack = null;
+  updateSnackScoreboard();
+}
+
+function resetGameState() {
+  score = 0;
+  lives = startingLives;
+  snackScores = createEmptySnackScores();
+  lockedSnack = null;
+  fireFormEndsAt = 0;
+  setPlayerForm(starterPlayerImage, false);
+  clearFallingItems();
+  clearFloatingEffects();
+  lastFrameTime = 0;
+  playerFlashUntil = 0;
+  resetBasket();
+  basket.style.opacity = "1";
+  updateScore();
+  updateLives();
+  updateSnackScoreboard();
+}
+
+function clearFallingItems() {
+  fallingItems.forEach(function (item) {
+    item.element.remove();
+  });
+  fallingItems = [];
+}
+
+function setPlayerForm(playerImage, shouldFlash) {
+  const previousFormSnack = formSnackByImage[currentPlayerImage] || null;
+
+  if (currentPlayerImage === "leaf.png" && playerImage !== "leaf.png") {
+    clearFlowerMarkers();
+  }
+
+  if (previousFormSnack && playerImage !== currentPlayerImage) {
+    snackScores[previousFormSnack] = 0;
+    if (lockedSnack === previousFormSnack) {
+      lockedSnack = null;
+    }
+  }
+
+  currentPlayerImage = playerImage;
+  basketSpeedMultiplier = playerImage === "light.png" ? 2 : 1;
+  isBombImmune = playerImage === "fire.png";
+  fireHint.classList.toggle("hidden", playerImage !== "fire.png");
+  fireTimerDisplay.textContent = playerImage === "fire.png" ? "15s" : "";
+  fireFormEndsAt = playerImage === "fire.png" ? performance.now() + fireFormDuration : 0;
+  updatePlayerImage();
+  updateSnackScoreboard();
+
+  if (shouldFlash) {
+    playerFlashUntil = performance.now() + formFlashDuration;
+  } else {
+    playerFlashUntil = 0;
+    basket.style.opacity = "1";
+  }
+}
+
+function handleBombCollision(item) {
+  if (isBombImmune) {
+    playSound(explodeSound);
+    destroyBomb(item);
+    return;
+  }
+
+  playSound(explodeSound);
+  lives -= 1;
+  updateLives();
+  createLifeEffect("-1", "life-loss", getBasketCenterPoint());
+  setPlayerForm(starterPlayerImage, currentPlayerImage !== starterPlayerImage);
+  removeItem(item);
+
+  if (lives <= 0) {
+    endGame();
+  }
+}
+
+function destroyBomb(item) {
+  if (!item) {
+    return;
+  }
+
+  score += 3;
+  updateScore();
+  createScoreEffect("+3", "score-bonus", {
+    x: item.x + item.size / 2,
+    y: item.y
+  });
+
+  const explosion = document.createElement("div");
+  explosion.className = "bomb-explosion";
+  explosion.textContent = "💥";
+  explosion.style.left = item.x + "px";
+  explosion.style.top = item.y + "px";
+  gameArea.appendChild(explosion);
+
+  item.element.classList.add("bomb-destroyed");
+  detachItem(item);
+
+  window.setTimeout(function () {
+    item.element.remove();
+    explosion.remove();
+  }, 320);
+
+  if (score >= winScore) {
+    endGameWithWin();
+  }
+}
+
+function updatePlayerFlash(currentTime) {
+  if (playerFlashUntil <= currentTime) {
+    basket.style.opacity = "1";
+    return;
+  }
+
+  const flashPhase = Math.floor((playerFlashUntil - currentTime) / formFlashFrequency);
+  basket.style.opacity = flashPhase % 2 === 0 ? "1" : "0.35";
+}
+
+function updateFireTimer(currentTime) {
+  if (currentPlayerImage !== "fire.png") {
+    fireTimerDisplay.textContent = "";
+    return;
+  }
+
+  const remainingMs = fireFormEndsAt - currentTime;
+
+  if (remainingMs <= 0) {
+    setPlayerForm(starterPlayerImage, false);
+    return;
+  }
+
+  fireTimerDisplay.textContent = Math.ceil(remainingMs / 1000) + "s";
+}
+
+function updatePlayerImage() {
+  let playerImageElement = basket.querySelector("img");
+
+  if (!playerImageElement) {
+    playerImageElement = document.createElement("img");
+    playerImageElement.alt = "player";
+    playerImageElement.addEventListener("error", function () {
+      playerImageElement.remove();
+      basket.textContent = "🧺";
+    });
+    basket.textContent = "";
+    basket.appendChild(playerImageElement);
+  }
+
+  basket.textContent = "";
+  basket.appendChild(playerImageElement);
+  playerImageElement.src = currentPlayerImage;
+}
+
 // ----- Cleanup -----
 function removeMissedItems() {
-  const bottomOfGame = gameArea.clientHeight + itemSize;
+  const bottomOfGame = gameArea.clientHeight;
 
   fallingItems.slice().forEach(function (item) {
-    if (item.y > bottomOfGame) {
+    if (item.y > bottomOfGame + item.size) {
       removeItem(item);
     }
   });
@@ -287,10 +784,86 @@ function removeMissedItems() {
 
 function removeItem(itemToRemove) {
   itemToRemove.element.remove();
+  detachItem(itemToRemove);
+}
 
+function detachItem(itemToRemove) {
   fallingItems = fallingItems.filter(function (item) {
     return item !== itemToRemove;
   });
+}
+
+function getBasketCenterPoint() {
+  return {
+    x: basketX + basket.offsetWidth / 2 - 18,
+    y: gameArea.clientHeight - basket.offsetHeight - 8
+  };
+}
+
+function createSound(source) {
+  const sources = Array.isArray(source) ? source : [source];
+  const sound = new Audio(sources[0]);
+  sound.preload = "auto";
+  if (sources.length > 1) {
+    let sourceIndex = 0;
+    sound.addEventListener("error", function tryNextSource() {
+      sourceIndex += 1;
+      const nextSource = sources[sourceIndex];
+
+      if (!nextSource) {
+        return;
+      }
+
+      sound.removeEventListener("error", tryNextSource);
+      sound.src = nextSource;
+      sound.load();
+    });
+  }
+  return sound;
+}
+
+function playSound(sound) {
+  if (!sound) {
+    return;
+  }
+
+  sound.currentTime = 0;
+  sound.play().catch(function () {
+    // Ignore autoplay or transient playback failures.
+  });
+}
+
+function playSoundTimes(sound, times) {
+  if (!sound || times <= 0) {
+    return;
+  }
+
+  const token = ++repeatedSoundToken;
+  let remainingPlays = times;
+
+  function playNext() {
+    if (token !== repeatedSoundToken) {
+      return;
+    }
+
+    sound.currentTime = 0;
+    sound.play().catch(function () {
+      // Ignore autoplay or transient playback failures.
+    });
+    remainingPlays -= 1;
+
+    if (remainingPlays > 0) {
+      sound.addEventListener("ended", playNext, { once: true });
+    }
+  }
+
+  playNext();
+}
+
+function stopRepeatedSounds() {
+  repeatedSoundToken += 1;
+  cheerSound.pause();
+  cheerSound.currentTime = 0;
 }
 
 window.addEventListener("resize", function () {

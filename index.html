@@ -15,19 +15,78 @@
           <h1>Snack Catcher</h1>
         </div>
 
-        <div class="score-box" aria-live="polite">
-          <span>Score</span>
-          <strong id="score">0</strong>
+        <div class="status-panels">
+          <div class="score-box" aria-live="polite">
+            <span>Score</span>
+            <strong id="score">0</strong>
+          </div>
+
+          <div class="score-box" aria-live="polite">
+            <span>Lives</span>
+            <strong id="lives">2</strong>
+          </div>
+
+          <button id="exitButton" type="button">Exit</button>
         </div>
       </div>
 
+      <section class="snack-scoreboard" aria-label="Snack scoreboard">
+        <div class="snack-scoreboard-grid">
+          <div class="snack-score-item snack-strawberry">
+            <span class="snack-label">🍓 草莓</span>
+            <div id="score-strawberry" class="snack-progress" aria-label="草莓 progress">
+              <span class="progress-segment"></span>
+              <span class="progress-segment"></span>
+              <span class="progress-segment"></span>
+              <span class="progress-segment"></span>
+              <span class="progress-segment"></span>
+            </div>
+          </div>
+          <div class="snack-score-item snack-cookie">
+            <span class="snack-label">🍪 糖果</span>
+            <div id="score-candy" class="snack-progress" aria-label="糖果 progress">
+              <span class="progress-segment"></span>
+              <span class="progress-segment"></span>
+              <span class="progress-segment"></span>
+              <span class="progress-segment"></span>
+              <span class="progress-segment"></span>
+            </div>
+          </div>
+          <div class="snack-score-item snack-donut">
+            <span class="snack-label">🍩 甜甜圈</span>
+            <div id="score-donut" class="snack-progress" aria-label="甜甜圈 progress">
+              <span class="progress-segment"></span>
+              <span class="progress-segment"></span>
+              <span class="progress-segment"></span>
+              <span class="progress-segment"></span>
+              <span class="progress-segment"></span>
+            </div>
+          </div>
+          <div class="snack-score-item snack-apple">
+            <span class="snack-label">🍎 蘋果</span>
+            <div id="score-apple" class="snack-progress" aria-label="蘋果 progress">
+              <span class="progress-segment"></span>
+              <span class="progress-segment"></span>
+              <span class="progress-segment"></span>
+              <span class="progress-segment"></span>
+              <span class="progress-segment"></span>
+            </div>
+          </div>
+        </div>
+      </section>
+
       <div id="gameArea" class="game-area">
+        <div id="fireHint" class="fire-hint hidden" aria-live="polite">
+          You are now invincible
+          <span id="fireTimer" class="fire-timer"></span>
+        </div>
         <div class="cloud cloud-one"></div>
         <div class="cloud cloud-two"></div>
 
         <div id="startScreen" class="screen">
           <h2>Catch the snacks!</h2>
           <p>Drag left and right, or use the arrow keys. Watch out for bombs.</p>
+          <p>Score 100 points to beat the level.</p>
           <button id="startButton" type="button">Start Game</button>
         </div>
 
@@ -37,8 +96,14 @@
           <button id="restartButton" type="button">Play Again</button>
         </div>
 
-        <div id="basket" class="basket" aria-label="basket">
-          <img src="char.png" alt="player" onerror="this.remove(); this.parentElement.textContent = '🧺';">
+        <div id="winScreen" class="screen hidden">
+          <h2>Congratulations!</h2>
+          <p>You reached <strong>100</strong> points and cleared the game.</p>
+          <button id="continueButton" type="button">Continue</button>
+        </div>
+
+        <div id="basket" class="basket" aria-label="player">
+          <img src="eevee.png" alt="Eevee player" onerror="this.remove(); this.parentElement.textContent = '🧺';">
         </div>
       </div>
 
