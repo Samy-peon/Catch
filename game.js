@@ -6,6 +6,8 @@ const gameArea = document.getElementById("gameArea");
 const basket = document.getElementById("basket");
 const scoreDisplay = document.getElementById("score");
 const livesDisplay = document.getElementById("lives");
+const snackRatioDisplay = document.getElementById("snackRatio");
+const burnedCountDisplay = document.getElementById("burnedCount");
 const strawberryScoreDisplay = document.getElementById("score-strawberry");
 const candyScoreDisplay = document.getElementById("score-candy");
 const donutScoreDisplay = document.getElementById("score-donut");
@@ -16,6 +18,7 @@ const gameOverScreen = document.getElementById("gameOverScreen");
 const winScreen = document.getElementById("winScreen");
 const fireHint = document.getElementById("fireHint");
 const fireTimerDisplay = document.getElementById("fireTimer");
+const ambientPropsLayer = document.getElementById("ambientProps");
 const startButton = document.getElementById("startButton");
 const restartButton = document.getElementById("restartButton");
 const continueButton = document.getElementById("continueButton");
@@ -42,6 +45,24 @@ const floatingEffectSpeed = 3.6;
 const fireFormDuration = 15000;
 const winScore = 100;
 const starterPlayerImage = "eevee.png";
+const dayNightPhaseDuration = 12000;
+const weatherPhaseDuration = 8000;
+const dayNightPhases = [
+  { name: "morning" },
+  { name: "noon" },
+  { name: "sunset" },
+  { name: "evening" },
+  { name: "midnight" },
+  { name: "dawn" }
+];
+const weatherPhases = [
+  { name: "clear" },
+  { name: "cloud" },
+  { name: "more-cloud" },
+  { name: "dark-cloud" },
+  { name: "light-cloud" },
+  { name: "windy" }
+];
 const snackRewardImages = {
   "🍓": "char.png",
   "🍪": "leaf.png",
@@ -71,6 +92,9 @@ const snackCountDisplays = {
 let basketX = 0;
 let score = 0;
 let lives = startingLives;
+let snacksCaught = 0;
+let totalSnackFalls = 0;
+let burnedCount = 0;
 let snackScores = createEmptySnackScores();
 let lockedSnack = null;
 let currentPlayerImage = starterPlayerImage;
@@ -88,14 +112,22 @@ let activePointerId = null;
 let playerFlashUntil = 0;
 let fireFormEndsAt = 0;
 let repeatedSoundToken = 0;
+let dayNightCycleStartedAt = performance.now();
+let weatherCycleStartedAt = performance.now();
+let activeDayNightPhaseKey = "";
+let activeWeatherPhaseKey = "";
+let nextFrogAt = 0;
+let nextBirdFlockAt = 0;
 
 // Put the basket in the center when the page loads.
 resetBasket();
 updateLives();
+updateDetailScoreboards();
 updatePlayerImage();
 updateSnackScoreboard();
 setupBackgroundMusic();
-playBackgroundMusic();
+resetWorldEnvironment();
+updateExitButtonState();
 
 // ----- Controls -----
 document.addEventListener("keydown", function (event) {
@@ -138,10 +170,11 @@ exitButton.addEventListener("click", exitGame);
 
 // ----- Main game flow -----
 function startGame() {
-  playBackgroundMusic();
   stopRepeatedSounds();
   resetGameState();
   isPlaying = true;
+  updateExitButtonState();
+  playBackgroundMusic();
   startScreen.classList.add("hidden");
   gameOverScreen.classList.add("hidden");
   winScreen.classList.add("hidden");
@@ -156,7 +189,8 @@ function startGame() {
 
 function endGame() {
   isPlaying = false;
-  playBackgroundMusic();
+  updateExitButtonState();
+  stopBackgroundMusic();
   stopRepeatedSounds();
   clearInterval(spawnTimer);
   cancelAnimationFrame(animationId);
@@ -169,7 +203,8 @@ function endGame() {
 
 function endGameWithWin() {
   isPlaying = false;
-  playBackgroundMusic();
+  updateExitButtonState();
+  stopBackgroundMusic();
   stopRepeatedSounds();
   clearInterval(spawnTimer);
   cancelAnimationFrame(animationId);
@@ -182,11 +217,12 @@ function endGameWithWin() {
 }
 
 function exitGame() {
-  playBackgroundMusic();
+  stopBackgroundMusic();
   stopRepeatedSounds();
   clearInterval(spawnTimer);
   cancelAnimationFrame(animationId);
   isPlaying = false;
+  updateExitButtonState();
   document.body.classList.remove("playing");
   activePointerId = null;
   resetGameState();
@@ -196,9 +232,10 @@ function exitGame() {
 }
 
 function continueFromWin() {
-  playBackgroundMusic();
+  stopBackgroundMusic();
   stopRepeatedSounds();
   resetGameState();
+  updateExitButtonState();
   startScreen.classList.remove("hidden");
   gameOverScreen.classList.add("hidden");
   winScreen.classList.add("hidden");
@@ -217,6 +254,8 @@ function gameLoop(currentTime) {
   const deltaTime = (currentTime - lastFrameTime) / 16.67;
   lastFrameTime = currentTime;
 
+  updateWorldEnvironment(currentTime);
+  updateAmbientProps(currentTime);
   updateFireTimer(currentTime);
   moveBasket(deltaTime);
   moveFallingItems(deltaTime);
@@ -306,6 +345,11 @@ function createFallingItem() {
   const startY = -(currentItemSize + 4);
   const snack = isBomb ? null : pickRandomSnack();
 
+  if (snack) {
+    totalSnackFalls += 1;
+    updateDetailScoreboards();
+  }
+
   element.className = "falling-item";
   element.style.left = x + "px";
   element.style.top = startY + "px";
@@ -375,6 +419,7 @@ function checkCollisions() {
       }
 
       score += 1;
+      snacksCaught += 1;
       playSound(eatSound);
       createScoreEffect("+1", "score-pickup", {
         x: item.x + item.size / 2,
@@ -386,6 +431,7 @@ function checkCollisions() {
 
       addSnackScore(item.snack, item);
       updateScore();
+      updateDetailScoreboards();
       removeItem(item);
       index -= 1;
 
@@ -412,6 +458,16 @@ function updateScore() {
 
 function updateLives() {
   livesDisplay.textContent = lives;
+}
+
+function updateExitButtonState() {
+  exitButton.disabled = !isPlaying;
+  exitButton.setAttribute("aria-disabled", String(!isPlaying));
+}
+
+function updateDetailScoreboards() {
+  snackRatioDisplay.textContent = snacksCaught + " / " + totalSnackFalls;
+  burnedCountDisplay.textContent = burnedCount;
 }
 
 function createEmptySnackScores() {
@@ -630,6 +686,9 @@ function resetSnackBarsOnly() {
 function resetGameState() {
   score = 0;
   lives = startingLives;
+  snacksCaught = 0;
+  totalSnackFalls = 0;
+  burnedCount = 0;
   snackScores = createEmptySnackScores();
   lockedSnack = null;
   fireFormEndsAt = 0;
@@ -639,9 +698,11 @@ function resetGameState() {
   lastFrameTime = 0;
   playerFlashUntil = 0;
   resetBasket();
+  resetWorldEnvironment();
   basket.style.opacity = "1";
   updateScore();
   updateLives();
+  updateDetailScoreboards();
   updateSnackScoreboard();
 }
 
@@ -708,7 +769,9 @@ function destroyBomb(item) {
   }
 
   score += 3;
+  burnedCount += 1;
   updateScore();
+  updateDetailScoreboards();
   createScoreEffect("+3", "score-bonus", {
     x: item.x + item.size / 2,
     y: item.y
@@ -779,6 +842,174 @@ function updatePlayerImage() {
   playerImageElement.src = currentPlayerImage;
 }
 
+function resetWorldEnvironment() {
+  const now = performance.now();
+  dayNightCycleStartedAt = now;
+  weatherCycleStartedAt = now;
+  activeDayNightPhaseKey = "";
+  activeWeatherPhaseKey = "";
+  applyDayNightPhase(dayNightPhases[0]);
+  applyWeatherPhase(weatherPhases[0]);
+  updateCelestialPositions(dayNightPhases[0].name, 0);
+  resetAmbientProps(now);
+}
+
+function updateWorldEnvironment(currentTime) {
+  updateDayNightCycle(currentTime);
+  updateWeatherCycle(currentTime);
+}
+
+function updateDayNightCycle(currentTime) {
+  const cycleDuration = dayNightPhases.length * dayNightPhaseDuration;
+  const elapsedInCycle = (currentTime - dayNightCycleStartedAt) % cycleDuration;
+  const phaseIndex = Math.floor(elapsedInCycle / dayNightPhaseDuration);
+  const elapsedInPhase = elapsedInCycle % dayNightPhaseDuration;
+  const phase = dayNightPhases[phaseIndex];
+
+  applyDayNightPhase(phase);
+  updateCelestialPositions(phase.name, elapsedInPhase);
+}
+
+function updateWeatherCycle(currentTime) {
+  const cycleDuration = weatherPhases.length * weatherPhaseDuration;
+  const elapsedInCycle = (currentTime - weatherCycleStartedAt) % cycleDuration;
+  const phaseIndex = Math.floor(elapsedInCycle / weatherPhaseDuration);
+
+  applyWeatherPhase(weatherPhases[phaseIndex]);
+}
+
+function applyDayNightPhase(phase) {
+  const phaseKey = phase.name;
+
+  if (phaseKey === activeDayNightPhaseKey) {
+    return;
+  }
+
+  gameArea.classList.remove(
+    "day-morning",
+    "day-noon",
+    "day-sunset",
+    "day-evening",
+    "day-midnight",
+    "day-dawn"
+  );
+  gameArea.classList.add("day-" + phase.name);
+
+  activeDayNightPhaseKey = phaseKey;
+}
+
+function applyWeatherPhase(phase) {
+  const phaseKey = phase.name;
+
+  if (phaseKey === activeWeatherPhaseKey) {
+    return;
+  }
+
+  gameArea.classList.remove(
+    "weather-clear",
+    "weather-cloud",
+    "weather-more-cloud",
+    "weather-dark-cloud",
+    "weather-light-cloud",
+    "weather-windy"
+  );
+  gameArea.classList.add("weather-" + phase.name);
+
+  activeWeatherPhaseKey = phaseKey;
+}
+
+function updateCelestialPositions(phaseName, elapsedInPhase) {
+  let sunX = -12;
+  let sunY = 10;
+  let moonX = -12;
+  let moonY = 10;
+  let sunOpacity = 0;
+  let moonOpacity = 0;
+
+  if (phaseName === "noon") {
+    const progress = elapsedInPhase / dayNightPhaseDuration;
+    sunX = -12 + progress * 124;
+    sunY = 10;
+    sunOpacity = 0.98;
+  }
+
+  if (phaseName === "midnight") {
+    const progress = elapsedInPhase / dayNightPhaseDuration;
+    moonX = -12 + progress * 124;
+    moonY = 10;
+    moonOpacity = 0.96;
+  }
+
+  gameArea.style.setProperty("--sun-x", sunX + "%");
+  gameArea.style.setProperty("--sun-y", sunY + "%");
+  gameArea.style.setProperty("--moon-x", moonX + "%");
+  gameArea.style.setProperty("--moon-y", moonY + "%");
+  gameArea.style.setProperty("--sun-opacity", String(sunOpacity));
+  gameArea.style.setProperty("--moon-opacity", String(moonOpacity));
+}
+
+function resetAmbientProps(currentTime) {
+  clearAmbientProps();
+  nextFrogAt = currentTime + randomBetween(2600, 6200);
+  nextBirdFlockAt = currentTime + randomBetween(3600, 7600);
+}
+
+function updateAmbientProps(currentTime) {
+  if (currentTime >= nextFrogAt) {
+    spawnAmbientFrog();
+    nextFrogAt = currentTime + randomBetween(9500, 17500);
+  }
+
+  if (currentTime >= nextBirdFlockAt) {
+    spawnBirdFlock();
+    nextBirdFlockAt = currentTime + randomBetween(11000, 21000);
+  }
+}
+
+function spawnAmbientFrog() {
+  if (!ambientPropsLayer) {
+    return;
+  }
+
+  const frog = document.createElement("div");
+  frog.className = "ambient-prop ambient-frog";
+  frog.textContent = "🐸";
+  frog.style.bottom = randomBetween(4, 10) + "%";
+  frog.style.setProperty("--ambient-duration", randomBetween(6.4, 9.2) + "s");
+  frog.style.setProperty("--prop-travel", "-" + (gameArea.clientWidth + 180) + "px");
+  frog.addEventListener("animationend", function () {
+    frog.remove();
+  });
+  ambientPropsLayer.appendChild(frog);
+}
+
+function spawnBirdFlock() {
+  if (!ambientPropsLayer) {
+    return;
+  }
+
+  const birds = document.createElement("div");
+  birds.className = "ambient-prop ambient-birds";
+  birds.textContent = "🐦  🐦  🐦";
+  birds.style.top = randomBetween(9, 24) + "%";
+  birds.style.setProperty("--ambient-duration", randomBetween(8.5, 12.5) + "s");
+  birds.style.setProperty("--prop-travel", gameArea.clientWidth + 260 + "px");
+  birds.addEventListener("animationend", function () {
+    birds.remove();
+  });
+  ambientPropsLayer.appendChild(birds);
+}
+
+function clearAmbientProps() {
+  if (ambientPropsLayer) {
+    ambientPropsLayer.textContent = "";
+  }
+}
+
+function randomBetween(min, max) {
+  return min + Math.random() * (max - min);
+}
+
 // ----- Cleanup -----
 function removeMissedItems() {
   const bottomOfGame = gameArea.clientHeight;
@@ -833,9 +1064,6 @@ function createSound(source) {
 function setupBackgroundMusic() {
   backgroundMusic.loop = true;
   backgroundMusic.volume = 0.34;
-
-  document.addEventListener("pointerdown", playBackgroundMusic, { once: true });
-  document.addEventListener("keydown", playBackgroundMusic, { once: true });
 }
 
 function playSound(sound) {
@@ -855,8 +1083,13 @@ function playBackgroundMusic() {
   }
 
   backgroundMusic.play().catch(function () {
-    // Ignore autoplay failures until the player interacts with the page.
+    // Ignore transient playback failures.
   });
+}
+
+function stopBackgroundMusic() {
+  backgroundMusic.pause();
+  backgroundMusic.currentTime = 0;
 }
 
 function playSoundTimes(sound, times) {

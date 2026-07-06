@@ -9,79 +9,104 @@
 <body>
   <main class="game-page">
     <section class="game-card" aria-label="Snack Catcher game">
-      <div class="top-bar">
-        <div>
-          <p class="eyebrow">Emoji Arcade</p>
-          <h1>Snack Catcher</h1>
-        </div>
-
-        <div class="status-panels">
-          <div class="score-box" aria-live="polite">
-            <span>Score</span>
-            <strong id="score">0</strong>
+      <aside class="game-sidebar" aria-label="Game information">
+        <div class="top-bar">
+          <div>
+            <p class="eyebrow">Emoji Arcade</p>
+            <h1>Snack Catcher</h1>
           </div>
 
-          <div class="score-box" aria-live="polite">
-            <span>Lives</span>
-            <strong id="lives">2</strong>
-          </div>
-
-          <button id="exitButton" type="button">Exit</button>
-        </div>
-      </div>
-
-      <section class="snack-scoreboard" aria-label="Snack scoreboard">
-        <div class="snack-scoreboard-grid">
-          <div class="snack-score-item snack-strawberry">
-            <span class="snack-label">🍓 草莓</span>
-            <div id="score-strawberry" class="snack-progress" aria-label="草莓 progress">
-              <span class="progress-segment"></span>
-              <span class="progress-segment"></span>
-              <span class="progress-segment"></span>
-              <span class="progress-segment"></span>
-              <span class="progress-segment"></span>
+          <div class="status-panels">
+            <div class="score-box" aria-live="polite">
+              <span>Score</span>
+              <strong id="score">0</strong>
             </div>
-          </div>
-          <div class="snack-score-item snack-cookie">
-            <span class="snack-label">🍪 糖果</span>
-            <div id="score-candy" class="snack-progress" aria-label="糖果 progress">
-              <span class="progress-segment"></span>
-              <span class="progress-segment"></span>
-              <span class="progress-segment"></span>
-              <span class="progress-segment"></span>
-              <span class="progress-segment"></span>
-            </div>
-          </div>
-          <div class="snack-score-item snack-donut">
-            <span class="snack-label">🍩 甜甜圈</span>
-            <div id="score-donut" class="snack-progress" aria-label="甜甜圈 progress">
-              <span class="progress-segment"></span>
-              <span class="progress-segment"></span>
-              <span class="progress-segment"></span>
-              <span class="progress-segment"></span>
-              <span class="progress-segment"></span>
-            </div>
-          </div>
-          <div class="snack-score-item snack-apple">
-            <span class="snack-label">🍎 蘋果</span>
-            <div id="score-apple" class="snack-progress" aria-label="蘋果 progress">
-              <span class="progress-segment"></span>
-              <span class="progress-segment"></span>
-              <span class="progress-segment"></span>
-              <span class="progress-segment"></span>
-              <span class="progress-segment"></span>
+
+            <div class="score-box" aria-live="polite">
+              <span>Lives</span>
+              <strong id="lives">2</strong>
             </div>
           </div>
         </div>
-      </section>
+
+        <div class="detail-panels">
+          <div class="score-box detail-box" aria-live="polite">
+            <span>Snack</span>
+            <strong id="snackRatio">0 / 0</strong>
+          </div>
+
+          <div class="score-box detail-box" aria-live="polite">
+            <span>Burned</span>
+            <strong id="burnedCount">0</strong>
+          </div>
+        </div>
+
+        <section class="snack-scoreboard" aria-label="Snack scoreboard">
+          <div class="snack-scoreboard-grid">
+            <div class="snack-score-item snack-strawberry">
+              <span class="snack-label">🍓 草莓</span>
+              <div id="score-strawberry" class="snack-progress" aria-label="草莓 progress">
+                <span class="progress-segment"></span>
+                <span class="progress-segment"></span>
+                <span class="progress-segment"></span>
+                <span class="progress-segment"></span>
+                <span class="progress-segment"></span>
+              </div>
+            </div>
+            <div class="snack-score-item snack-cookie">
+              <span class="snack-label">🍪 糖果</span>
+              <div id="score-candy" class="snack-progress" aria-label="糖果 progress">
+                <span class="progress-segment"></span>
+                <span class="progress-segment"></span>
+                <span class="progress-segment"></span>
+                <span class="progress-segment"></span>
+                <span class="progress-segment"></span>
+              </div>
+            </div>
+            <div class="snack-score-item snack-donut">
+              <span class="snack-label">🍩 甜甜圈</span>
+              <div id="score-donut" class="snack-progress" aria-label="甜甜圈 progress">
+                <span class="progress-segment"></span>
+                <span class="progress-segment"></span>
+                <span class="progress-segment"></span>
+                <span class="progress-segment"></span>
+                <span class="progress-segment"></span>
+              </div>
+            </div>
+            <div class="snack-score-item snack-apple">
+              <span class="snack-label">🍎 蘋果</span>
+              <div id="score-apple" class="snack-progress" aria-label="蘋果 progress">
+                <span class="progress-segment"></span>
+                <span class="progress-segment"></span>
+                <span class="progress-segment"></span>
+                <span class="progress-segment"></span>
+                <span class="progress-segment"></span>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <p class="hint">Drag left/right or use ← and →</p>
+        <button id="exitButton" type="button">Exit</button>
+      </aside>
 
       <div id="gameArea" class="game-area">
+        <div class="sky-stars"></div>
+        <div class="sun"></div>
+        <div class="moon"></div>
+        <div class="rain-layer"></div>
+        <div class="lightning-layer"></div>
+        <div id="ambientProps" class="ambient-props" aria-hidden="true"></div>
         <div id="fireHint" class="fire-hint hidden" aria-live="polite">
           You are now invincible
           <span id="fireTimer" class="fire-timer"></span>
         </div>
-        <div class="cloud cloud-one"></div>
-        <div class="cloud cloud-two"></div>
+        <div class="cloud cloud-one depth-near"></div>
+        <div class="cloud cloud-two depth-far"></div>
+        <div class="cloud cloud-three depth-mid"></div>
+        <div class="cloud cloud-four depth-near"></div>
+        <div class="cloud cloud-five depth-mid"></div>
+        <div class="cloud cloud-six depth-far"></div>
 
         <div id="startScreen" class="screen">
           <h2>Catch the snacks!</h2>
@@ -106,8 +131,6 @@
           <img src="eevee.png" alt="Eevee player" onerror="this.remove(); this.parentElement.textContent = '🧺';">
         </div>
       </div>
-
-      <p class="hint">Drag left/right or use ← and →</p>
     </section>
   </main>
 

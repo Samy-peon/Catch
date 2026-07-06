@@ -10,11 +10,18 @@ Whenever the game changes, this file should be updated so it matches the latest 
 - The game starts with `2` lives.
 - The game uses local sound effects for snack, bomb, and form-change events.
 - The game also uses local sound effects for bomb drops and the congratulations screen.
-- The game uses `background_music.mp3` as looping background music.
+- The game uses `background_music.mp3` as looping background music during active gameplay only.
 - Life gains and life losses show floating text effects inside the game area.
 - The game ends in a win when the total score reaches `100`.
 - The start screen tells the player to score `100` points to beat the level.
 - Restarting or exiting resets the game back to its starting state.
+- The page layout keeps the title, HUD, and hint text aligned to the left side.
+- The playable game area fills the full browser height from top to bottom.
+- The title, score, lives, exit button, snack bars, and hint live in a separate left HUD pane.
+- The HUD pane and the game pane are two side-by-side sections with a visible separation between them.
+- The exit button sits at the bottom-left area of the HUD pane.
+- The exit button is grayed out whenever the game is not actively running.
+- The game world includes animated sky motion with moving clouds, weather, and a day/night cycle.
 
 ## Snack items
 
@@ -56,7 +63,8 @@ Whenever the game changes, this file should be updated so it matches the latest 
   - Trigger: collect `5` apples
   - Ongoing effect: bomb immunity
   - This form lasts `15` seconds unless the player changes form earlier
-  - Show a countdown in seconds while this form is active
+  - Show a large countdown in seconds centered in the game pane while this form is active
+  - The `You are now invincible` label is smaller than the countdown number
   - When the timer ends, return to `eevee.png` and remove the special properties
   - Show a top-of-game hint: `You are now invincible`
   - If this form touches a bomb, the bomb should play a destroyed-looking flicker and explosion effect
@@ -99,9 +107,16 @@ Whenever the game changes, this file should be updated so it matches the latest 
 
 - Keep the total score.
 - Keep a life scoreboard.
+- Show a `Snack X/Y` scoreboard in two lines under the main score area.
+- In `Snack X/Y`, `X` is the number of snacks caught and `Y` is the total number of snacks that fell from the sky, including both caught and missed snacks.
+- Show a `Burned Z` scoreboard beside the snack catch/drop scoreboard.
+- In `Burned Z`, `Z` is the number of bombs destroyed while in the burn/fire state.
+- The `Snack` and `Burned` scoreboards are center-aligned like the main `Score` and `Lives` boxes.
 - Each snack uses a `5`-step progress bar instead of a number counter.
 - The emoji and snack label stay on the same line as the progress bar.
 - Each snack progress bar is wider than before for easier reading.
+- The spacing between progress segments is tight enough that the right-most segment remains fully visible inside the HUD pane.
+- All four snack progress bars share the same left edge and width, aligned to the widest snack label row.
 - The snack bar colors are:
   - Strawberry: light pink
   - Cookie: light green
@@ -112,11 +127,14 @@ Whenever the game changes, this file should be updated so it matches the latest 
 - When the player changes away from a form, that old form's snack bar resets to `0` and can charge again.
 - All counters reset on restart or exit.
 - The scoreboard area is more compact so more height is available for the actual game pane.
+- The overall layout leaves minimal empty space outside the HUD and the game world.
 
 ## Controls and flow
 
 - The game has a start button.
-- The background music starts from the start screen and continues through gameplay, game over, and the congratulations screen.
+- The background music starts when gameplay starts.
+- The background music is stopped on the start screen, after exit, after game over, and on the congratulations screen.
+- The exit button is disabled on the start screen and other non-playing screens.
 - The game has a play-again button after game over.
 - The game has a congratulations screen when the total score reaches `100`.
 - When the congratulations screen appears, play `cheer.m4a` `3` times.
@@ -124,6 +142,64 @@ Whenever the game changes, this file should be updated so it matches the latest 
 - While the congratulations screen is showing, keep the total score and lives unchanged until the player presses continue.
 - The congratulations screen has a continue button that resets the game to the initial state and start screen.
 - The game has an exit button that ends the current run and resets the game to the start state.
+
+## World atmosphere
+
+- The game world has three separate ambient systems:
+  - Day-night cycle
+  - Weather cycle
+  - Random doodad and prop events
+- The sky has moving clouds with different depth and speed.
+- The game world has a persistent foreground that does not change with sky or weather:
+  - Brown hills in the distance
+  - A green grass strip where the player moves
+
+### Day-night cycle
+
+- The day-night cycle uses `6` phases.
+- Each day-night phase lasts `12` seconds.
+- The phases are:
+  - Morning
+  - Noon
+  - Sunset
+  - Evening
+  - Midnight
+  - Dawn
+- Morning uses a more purple-blue sky palette.
+- Noon uses a blue-to-white sky palette.
+- Sunset uses an orange-yellow-light-blue sky palette.
+- Evening uses a dark blue sky palette.
+- Midnight uses a black night sky with visible stars.
+- Some midnight stars pulse so the night sky twinkles.
+- Dawn uses a black-dark-blue-purple sky palette.
+- The sun appears only during the `Noon` phase.
+- At the start of `Noon`, the sun begins near the top-left of the screen.
+- By the end of `Noon`, the sun reaches the top-right edge of the screen.
+- The sun moves in a straight line during the full `12` seconds.
+- The moon appears only during the `Midnight` phase.
+- At the start of `Midnight`, the moon begins near the top-left of the screen.
+- By the end of `Midnight`, the moon reaches the top-right edge of the screen.
+- The moon moves in a straight line during the full `12` seconds.
+
+### Weather cycle
+
+- Weather does not follow the day-night timer.
+- Weather runs on its own separate loop.
+- Each weather phase lasts `8` seconds.
+- The weather phases are:
+  - Clear sky
+  - Cloud
+  - Much more cloud
+  - Dark cloud
+  - Light cloud
+  - Strong wind with fast-moving clouds
+- After the strong-wind phase, the weather loops back to clear sky.
+
+### Doodads and props
+
+- A frog can jump across the grass from right to left.
+- A flock of birds can fly across the sky from left to right.
+- These doodad and prop events happen on random timers during gameplay.
 
 ## Files allowed to change
 

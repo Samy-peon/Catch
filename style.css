@@ -41,33 +41,51 @@ button:active {
   box-shadow: 0 3px 0 #c84343;
 }
 
+button:disabled {
+  cursor: not-allowed;
+  color: #f7f7f7;
+  background: #c7c7c7;
+  box-shadow: 0 8px 0 #979797;
+  transform: none;
+}
+
+button:disabled:hover,
+button:disabled:active {
+  transform: none;
+  box-shadow: 0 8px 0 #979797;
+}
+
 .game-page {
   min-height: 100vh;
   min-height: 100dvh;
-  display: grid;
-  place-items: center;
-  padding: clamp(12px, 3vw, 24px);
+  padding: 0;
 }
 
 .game-card {
-  width: min(920px, 100%);
-  max-height: calc(100dvh - 24px);
-  display: flex;
-  flex-direction: column;
+  width: 100%;
+  height: 100vh;
+  height: 100dvh;
+  max-height: none;
+  display: grid;
+  grid-template-columns: minmax(280px, 360px) minmax(0, 1fr);
 }
 
 .top-bar {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  margin-bottom: 16px;
+  align-items: flex-start;
+  justify-content: flex-start;
+  gap: 14px;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
 }
 
 .status-panels {
   display: flex;
   align-items: stretch;
+  justify-content: flex-start;
+  flex-wrap: wrap;
   gap: 12px;
+  margin-bottom: 10px;
 }
 
 .status-panels button {
@@ -96,6 +114,7 @@ h1 {
   line-height: 1;
   color: #ff4f79;
   text-shadow: 3px 3px 0 #ffffff;
+  text-align: left;
 }
 
 .score-box {
@@ -108,7 +127,7 @@ h1 {
   box-shadow: 0 8px 20px rgba(36, 48, 71, 0.16);
 }
 
-.score-box span {
+.score-box > span {
   display: block;
   font-size: 0.8rem;
   font-weight: 800;
@@ -121,9 +140,36 @@ h1 {
   line-height: 1;
 }
 
+.detail-panels {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  width: 100%;
+  margin-bottom: 12px;
+}
+
+.detail-box {
+  min-width: 0;
+  padding: 10px 12px;
+  text-align: center;
+}
+
+.detail-box strong {
+  margin-top: 6px;
+  font-size: 1.4rem;
+  line-height: 1.15;
+  white-space: nowrap;
+}
+
+.status-panels .score-box strong {
+  margin-top: 8px;
+}
+
 .snack-scoreboard {
-  margin-bottom: 8px;
-  padding: 8px 12px;
+  margin-bottom: 10px;
+  width: calc(100% + 8px);
+  margin-right: -8px;
+  padding: 10px 6px 10px 10px;
   border: 4px solid #ffffff;
   border-radius: 18px;
   background: rgba(255, 248, 166, 0.85);
@@ -132,31 +178,32 @@ h1 {
 
 .snack-scoreboard-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 6px 10px;
+  grid-template-columns: 1fr;
+  gap: 8px;
 }
 
 .snack-score-item {
-  display: flex;
+  display: grid;
+  grid-template-columns: 92px minmax(0, 1fr);
   align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  padding: 6px 10px;
+  gap: 8px;
+  padding: 6px 6px 6px 8px;
   border-radius: 14px;
   background: rgba(255, 255, 255, 0.72);
 }
 
 .snack-label {
-  flex: 0 0 auto;
+  width: 92px;
   font-weight: 800;
   white-space: nowrap;
 }
 
 .snack-progress {
-  flex: 0 0 230px;
+  flex: 1 1 0;
+  min-width: 0;
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: 4px;
+  gap: 3px;
 }
 
 .progress-segment {
@@ -190,36 +237,307 @@ h1 {
 .game-area {
   position: relative;
   width: 100%;
-  height: clamp(470px, 76dvh, 700px);
-  min-height: 0;
+  min-width: 0;
+  height: 100vh;
+  height: 100dvh;
+  min-height: 100vh;
+  min-height: 100dvh;
   overflow: hidden;
-  border: 8px solid #ffffff;
-  border-radius: 22px;
-  background:
-    linear-gradient(#7ddcff 0%, #dff9ff 58%, #98e66f 59%, #62c744 100%);
-  box-shadow: 0 18px 40px rgba(36, 48, 71, 0.25);
+  border-left: 5px solid rgba(255, 255, 255, 0.92);
+  background: linear-gradient(#8fe0ff 0%, #e5f9ff 58%, #a7e77a 59%, #66c74c 100%);
   touch-action: none;
+  transition: background 1400ms ease-in-out, filter 1400ms ease-in-out;
+  --sun-x: 10%;
+  --sun-y: 10%;
+  --moon-x: 82%;
+  --moon-y: 10%;
+  --sun-opacity: 0;
+  --moon-opacity: 0;
+  --cloud-color: rgba(255, 255, 255, 0.94);
+  --cloud-highlight: rgba(255, 255, 255, 0.9);
+}
+
+.game-area::before,
+.game-area::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  pointer-events: none;
+}
+
+.game-area::before {
+  bottom: 11%;
+  height: 26%;
+  z-index: 1;
+  background:
+    radial-gradient(ellipse at 12% 100%, #8b5a3a 0 28%, transparent 29%),
+    radial-gradient(ellipse at 34% 100%, #9d6945 0 24%, transparent 25%),
+    radial-gradient(ellipse at 56% 100%, #7e5134 0 30%, transparent 31%),
+    radial-gradient(ellipse at 76% 100%, #946343 0 24%, transparent 25%),
+    radial-gradient(ellipse at 94% 100%, #7a4d33 0 28%, transparent 29%);
+  opacity: 0.94;
+}
+
+.game-area::after {
+  bottom: 0;
+  height: 18%;
+  z-index: 3;
+  background:
+    linear-gradient(180deg, #8be065 0%, #5ec94a 32%, #46b53f 66%, #309133 100%);
+  box-shadow: inset 0 10px 18px rgba(255, 255, 255, 0.22);
+}
+
+.game-sidebar {
+  height: 100vh;
+  height: 100dvh;
+  padding: 18px 14px 18px 18px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  overflow: auto;
+  background: linear-gradient(180deg, rgba(255, 251, 219, 0.95) 0%, rgba(255, 247, 190, 0.92) 100%);
+  border-right: 5px solid rgba(255, 255, 255, 0.92);
+  box-shadow: inset -10px 0 24px rgba(36, 48, 71, 0.08);
+}
+
+.game-area.day-morning {
+  background: linear-gradient(180deg, #544aa0 0%, #7285df 28%, #b1c9ff 54%, #daf4ff 100%);
+}
+
+.game-area.day-noon {
+  background: linear-gradient(180deg, #58c5ff 0%, #92deff 34%, #f7fdff 100%);
+}
+
+.game-area.day-sunset {
+  background: linear-gradient(180deg, #ff9648 0%, #ffc34c 26%, #ffe792 50%, #9bdcff 100%);
+}
+
+.game-area.day-evening {
+  background: linear-gradient(180deg, #0f2d6d 0%, #1a3e86 42%, #7ba2d3 100%);
+}
+
+.game-area.day-midnight {
+  background: linear-gradient(180deg, #01040d 0%, #040b1d 40%, #18335a 100%);
+}
+
+.game-area.day-dawn {
+  background: linear-gradient(180deg, #060816 0%, #12244f 36%, #4c2d79 62%, #8c67b4 76%, #bee8ff 100%);
+}
+
+.game-area.weather-clear {
+  filter: saturate(1.03) brightness(1.02);
+  --cloud-color: rgba(255, 255, 255, 0.86);
+  --cloud-highlight: rgba(255, 255, 255, 0.8);
+}
+
+.game-area.weather-clear .cloud {
+  opacity: 0.08;
+}
+
+.game-area.weather-cloud {
+  --cloud-color: rgba(255, 255, 255, 0.92);
+  --cloud-highlight: rgba(255, 255, 255, 0.86);
+}
+
+.game-area.weather-cloud .cloud {
+  opacity: 0.38;
+}
+
+.game-area.weather-more-cloud {
+  filter: saturate(0.98) brightness(0.99);
+  --cloud-color: rgba(244, 248, 255, 0.94);
+  --cloud-highlight: rgba(244, 248, 255, 0.88);
+}
+
+.game-area.weather-more-cloud .cloud {
+  opacity: 0.72;
+}
+
+.game-area.weather-dark-cloud {
+  filter: saturate(0.84) brightness(0.88);
+  --cloud-color: rgba(88, 101, 129, 0.97);
+  --cloud-highlight: rgba(124, 137, 165, 0.9);
+}
+
+.game-area.weather-dark-cloud .cloud {
+  opacity: 0.9;
+}
+
+.game-area.weather-light-cloud {
+  --cloud-color: rgba(255, 255, 255, 0.88);
+  --cloud-highlight: rgba(255, 255, 255, 0.8);
+}
+
+.game-area.weather-light-cloud .cloud {
+  opacity: 0.28;
+}
+
+.game-area.weather-windy {
+  filter: saturate(1) brightness(0.97);
+  --cloud-color: rgba(238, 244, 255, 0.9);
+  --cloud-highlight: rgba(255, 255, 255, 0.84);
+}
+
+.game-area.weather-windy .cloud {
+  opacity: 0.58;
+  animation-duration: calc(var(--cloud-duration, 28s) * 0.42);
+}
+
+.sky-stars,
+.sun,
+.moon,
+.rain-layer,
+.lightning-layer,
+.ambient-props {
+  position: absolute;
+  pointer-events: none;
+}
+
+.sky-stars {
+  inset: 0;
+  z-index: 0;
+  opacity: 0;
+  transition: opacity 1200ms ease-in-out;
+  background:
+    radial-gradient(circle at 14% 18%, rgba(255, 255, 255, 0.95) 0 1px, transparent 1.6px),
+    radial-gradient(circle at 28% 36%, rgba(255, 255, 255, 0.92) 0 1.2px, transparent 1.8px),
+    radial-gradient(circle at 62% 22%, rgba(255, 255, 255, 0.9) 0 1px, transparent 1.6px),
+    radial-gradient(circle at 76% 44%, rgba(255, 255, 255, 0.95) 0 1.4px, transparent 2px),
+    radial-gradient(circle at 88% 14%, rgba(255, 255, 255, 0.88) 0 1.1px, transparent 1.7px),
+    radial-gradient(circle at 54% 12%, rgba(255, 255, 255, 0.82) 0 1px, transparent 1.6px),
+    radial-gradient(circle at 34% 12%, rgba(255, 255, 255, 0.74) 0 1px, transparent 1.6px);
+}
+
+.sky-stars::before,
+.sky-stars::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  background:
+    radial-gradient(circle at 18% 24%, rgba(255, 255, 255, 0.95) 0 2px, transparent 2.8px),
+    radial-gradient(circle at 41% 17%, rgba(255, 255, 255, 0.86) 0 1.6px, transparent 2.4px),
+    radial-gradient(circle at 68% 28%, rgba(255, 255, 255, 0.95) 0 1.8px, transparent 2.7px),
+    radial-gradient(circle at 82% 20%, rgba(255, 255, 255, 0.88) 0 2.2px, transparent 3px),
+    radial-gradient(circle at 58% 10%, rgba(255, 255, 255, 0.82) 0 1.5px, transparent 2.2px);
+}
+
+.sky-stars::before {
+  animation: starPulse 2.2s ease-in-out infinite;
+}
+
+.sky-stars::after {
+  animation: starPulse 3.1s ease-in-out infinite reverse;
+}
+
+.game-area.day-midnight .sky-stars {
+  opacity: 0.96;
+}
+
+.game-area.day-midnight .sky-stars::before,
+.game-area.day-midnight .sky-stars::after {
+  opacity: 1;
+}
+
+.sun,
+.moon {
+  width: 118px;
+  height: 118px;
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  transition:
+    left 1200ms ease-in-out,
+    top 1200ms ease-in-out,
+    opacity 1200ms ease-in-out,
+    filter 1200ms ease-in-out;
+}
+
+.sun {
+  left: var(--sun-x);
+  top: var(--sun-y);
+  z-index: 0;
+  opacity: var(--sun-opacity);
+  background: radial-gradient(circle at 35% 35%, #fffbd1 0%, #ffe066 48%, #ffc340 78%, rgba(255, 195, 64, 0.28) 100%);
+  box-shadow: 0 0 60px rgba(255, 220, 100, 0.55), 0 0 120px rgba(255, 205, 92, 0.22);
+}
+
+.moon {
+  left: var(--moon-x);
+  top: var(--moon-y);
+  z-index: 0;
+  opacity: var(--moon-opacity);
+  background: radial-gradient(circle at 35% 35%, #ffffff 0%, #edf5ff 55%, #cfdef0 100%);
+  box-shadow: 0 0 42px rgba(207, 228, 255, 0.38);
+}
+
+.moon::after {
+  content: "";
+  position: absolute;
+  inset: 14px 18px 18px 34px;
+  border-radius: 50%;
+  background: rgba(167, 190, 235, 0.26);
+}
+
+.rain-layer,
+.lightning-layer {
+  inset: 0;
+  z-index: 1;
+  opacity: 0;
+}
+
+.ambient-props {
+  inset: 0;
+  z-index: 4;
+  overflow: hidden;
+}
+
+.ambient-prop {
+  position: absolute;
+  user-select: none;
+  white-space: nowrap;
+  text-shadow: 0 3px 8px rgba(36, 48, 71, 0.18);
+}
+
+.ambient-frog {
+  right: -70px;
+  bottom: 6%;
+  font-size: 2.5rem;
+  animation: frogTraverse var(--ambient-duration, 8s) linear forwards;
+}
+
+.ambient-birds {
+  left: -200px;
+  top: 14%;
+  font-size: 1.5rem;
+  letter-spacing: 0.12em;
+  opacity: 0.95;
+  animation: birdTraverse var(--ambient-duration, 10s) linear forwards;
 }
 
 .fire-hint {
   position: absolute;
-  top: 14px;
+  top: 22px;
   left: 50%;
   z-index: 9;
-  padding: 10px 18px;
+  padding: 16px 28px;
   border-radius: 999px;
   color: #ffffff;
+  font-size: 1rem;
   font-weight: 900;
   background: rgba(255, 116, 64, 0.92);
   box-shadow: 0 10px 24px rgba(166, 64, 28, 0.28);
   transform: translateX(-50%);
+  text-align: center;
 }
 
 .fire-timer {
-  margin-left: 10px;
-  padding: 3px 10px;
+  display: block;
+  margin-top: 10px;
+  padding: 8px 18px;
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.22);
+  font-size: 2rem;
 }
 
 .cloud {
@@ -227,7 +545,11 @@ h1 {
   width: 120px;
   height: 42px;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.9);
+  z-index: 2;
+  background: var(--cloud-color);
+  animation: cloudDrift var(--cloud-duration, 28s) linear infinite;
+  will-change: transform;
+  transition: opacity 900ms ease, filter 900ms ease, background 900ms ease;
 }
 
 .cloud::before,
@@ -235,7 +557,7 @@ h1 {
   content: "";
   position: absolute;
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.9);
+  background: var(--cloud-highlight);
 }
 
 .cloud::before {
@@ -253,20 +575,57 @@ h1 {
 }
 
 .cloud-one {
-  left: 7%;
-  top: 62px;
+  top: 11%;
+  animation-delay: -9s;
 }
 
 .cloud-two {
-  right: 9%;
-  top: 122px;
-  transform: scale(0.8);
+  top: 21%;
+  animation-delay: -22s;
+}
+
+.cloud-three {
+  top: 31%;
+  animation-delay: -4s;
+}
+
+.cloud-four {
+  top: 17%;
+  animation-delay: -15s;
+}
+
+.cloud-five {
+  top: 26%;
+  animation-delay: -11s;
+}
+
+.cloud-six {
+  top: 8%;
+  animation-delay: -27s;
+}
+
+.depth-far {
+  --cloud-duration: 38s;
+  width: 98px;
+  height: 34px;
+}
+
+.depth-mid {
+  --cloud-duration: 30s;
+  width: 132px;
+  height: 46px;
+}
+
+.depth-near {
+  --cloud-duration: 22s;
+  width: 154px;
+  height: 54px;
 }
 
 .basket {
   position: absolute;
   left: 50%;
-  bottom: 16px;
+  bottom: 24px;
   width: 90px;
   height: 90px;
   display: grid;
@@ -274,7 +633,7 @@ h1 {
   font-size: 4rem;
   transform: translateX(-50%);
   user-select: none;
-  z-index: 5;
+  z-index: 6;
 }
 
 .basket img {
@@ -292,7 +651,7 @@ h1 {
   place-items: center;
   font-size: 2.6rem;
   user-select: none;
-  z-index: 3;
+  z-index: 5;
 }
 
 .flower-marker {
@@ -303,7 +662,7 @@ h1 {
   place-items: center;
   font-size: 2rem;
   pointer-events: none;
-  z-index: 2;
+  z-index: 6;
 }
 
 .floating-life-effect {
@@ -447,39 +806,135 @@ h1 {
   }
 }
 
+@keyframes starPulse {
+  0%,
+  100% {
+    opacity: 0.28;
+  }
+
+  50% {
+    opacity: 1;
+  }
+}
+
+@keyframes cloudDrift {
+  0% {
+    transform: translateX(-180px);
+  }
+
+  100% {
+    transform: translateX(calc(100vw + 260px));
+  }
+}
+
+@keyframes frogTraverse {
+  0% {
+    transform: translateX(0) translateY(0) scaleX(-1);
+  }
+
+  12% {
+    transform: translateX(calc(var(--prop-travel) * 0.12)) translateY(-18px) scaleX(-1);
+  }
+
+  24% {
+    transform: translateX(calc(var(--prop-travel) * 0.24)) translateY(0) scaleX(-1);
+  }
+
+  38% {
+    transform: translateX(calc(var(--prop-travel) * 0.38)) translateY(-16px) scaleX(-1);
+  }
+
+  52% {
+    transform: translateX(calc(var(--prop-travel) * 0.52)) translateY(0) scaleX(-1);
+  }
+
+  68% {
+    transform: translateX(calc(var(--prop-travel) * 0.68)) translateY(-14px) scaleX(-1);
+  }
+
+  84% {
+    transform: translateX(calc(var(--prop-travel) * 0.84)) translateY(0) scaleX(-1);
+  }
+
+  100% {
+    transform: translateX(var(--prop-travel)) translateY(-10px) scaleX(-1);
+  }
+}
+
+@keyframes birdTraverse {
+  0% {
+    transform: translateX(0) translateY(0);
+  }
+
+  25% {
+    transform: translateX(calc(var(--prop-travel) * 0.25)) translateY(-10px);
+  }
+
+  50% {
+    transform: translateX(calc(var(--prop-travel) * 0.5)) translateY(4px);
+  }
+
+  75% {
+    transform: translateX(calc(var(--prop-travel) * 0.75)) translateY(-8px);
+  }
+
+  100% {
+    transform: translateX(var(--prop-travel)) translateY(2px);
+  }
+}
+
 body.playing {
   overflow: hidden;
 }
 
 .hint {
-  margin: 14px 0 0;
-  text-align: center;
+  margin: auto 0 0;
+  text-align: left;
   color: #264653;
   font-weight: 800;
 }
 
+#exitButton {
+  margin-top: 14px;
+  align-self: flex-start;
+}
+
 @media (max-width: 780px) {
-  .top-bar {
-    gap: 12px;
+  .game-card {
+    grid-template-columns: minmax(250px, 320px) minmax(0, 1fr);
   }
 
-  .status-panels {
-    width: 100%;
-    justify-content: flex-end;
+  .game-sidebar {
+    padding: 14px 12px 14px 14px;
   }
 
-  .game-area {
-    height: clamp(540px, 79dvh, 760px);
+  .fire-hint {
+    font-size: 0.95rem;
+  }
+
+  .fire-timer {
+    font-size: 1.75rem;
+  }
+
+  .sun,
+  .moon {
+    width: 92px;
+    height: 92px;
   }
 }
 
 @media (max-width: 620px) {
-  .game-page {
-    padding: 10px;
+  .game-card {
+    grid-template-columns: minmax(220px, 250px) minmax(0, 1fr);
   }
 
-  .snack-scoreboard-grid {
-    grid-template-columns: 1fr;
+  .game-sidebar {
+    padding: 12px 10px 12px 12px;
+  }
+
+  .top-bar {
+    gap: 10px;
+    margin-bottom: 10px;
   }
 
   .snack-score-item {
@@ -487,18 +942,32 @@ body.playing {
     padding: 6px 8px;
   }
 
-  .snack-progress {
-    flex-basis: 190px;
+  .snack-label {
+    width: 84px;
   }
 
-  .top-bar {
-    align-items: flex-end;
-    flex-wrap: wrap;
+  .snack-score-item {
+    grid-template-columns: 84px minmax(0, 1fr);
+  }
+
+  .snack-progress {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+
+  .detail-panels {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+
+  .snack-scoreboard {
+    width: calc(100% + 4px);
+    margin-right: -4px;
   }
 
   .status-panels {
     width: 100%;
-    justify-content: space-between;
+    justify-content: flex-start;
     flex-wrap: wrap;
   }
 
@@ -511,10 +980,23 @@ body.playing {
     padding: 10px 12px;
   }
 
-  .game-area {
-    height: clamp(470px, 76dvh, 660px);
-    border-width: 5px;
-    border-radius: 18px;
+  .fire-hint {
+    top: 12px;
+    left: 50%;
+    right: auto;
+    max-width: calc(100% - 24px);
+    padding: 12px 18px;
+    font-size: 0.9rem;
+  }
+
+  .fire-timer {
+    font-size: 1.35rem;
+  }
+
+  .sun,
+  .moon {
+    width: 72px;
+    height: 72px;
   }
 
   .basket {
@@ -551,7 +1033,13 @@ body.playing {
     height: 360px;
   }
 
-  .cloud {
+  .cloud,
+  .sun,
+  .moon,
+  .rain-layer,
+  .sky-stars,
+  .lightning-layer,
+  .ambient-props {
     display: none;
   }
 
