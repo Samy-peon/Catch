@@ -18,7 +18,12 @@ const gameOverScreen = document.getElementById("gameOverScreen");
 const winScreen = document.getElementById("winScreen");
 const fireHint = document.getElementById("fireHint");
 const fireTimerDisplay = document.getElementById("fireTimer");
+const cloudLayer = document.getElementById("cloudLayer");
+const plantLayer = document.getElementById("plantLayer");
 const ambientPropsLayer = document.getElementById("ambientProps");
+const debugOverlay = document.getElementById("debugOverlay");
+const sunElement = gameArea.querySelector(".sun");
+const moonElement = gameArea.querySelector(".moon");
 const startButton = document.getElementById("startButton");
 const restartButton = document.getElementById("restartButton");
 const continueButton = document.getElementById("continueButton");
@@ -45,24 +50,57 @@ const floatingEffectSpeed = 3.6;
 const fireFormDuration = 15000;
 const winScore = 100;
 const starterPlayerImage = "eevee.png";
-const dayNightPhaseDuration = 12000;
+const fallingItemSpawnIntervals = {
+  base: 850,
+  medium: 600,
+  fast: 400
+};
 const weatherPhaseDuration = 8000;
+const cloudFrequencyDuration = 6000;
+const cloudOpacityCycle = [0.25, 0.75, 1, 0.5, 0, 0.25];
 const dayNightPhases = [
-  { name: "morning" },
-  { name: "noon" },
-  { name: "sunset" },
-  { name: "evening" },
-  { name: "midnight" },
-  { name: "dawn" }
+  {
+    name: "day",
+    duration: 36000,
+    skyStart: ["#7f86d9", "#9fc0ff", "#b78cc8", "#bfe6ff", "#d7f4ff"],
+    skyMid: ["#4dbfff", "#84dbff", "#c9f0ff", "#eefcff", "#ffffff"],
+    skyEnd: ["#ff7b4a", "#ff9f5a", "#ffbb68", "#ff8f6b", "#ff6e5f"],
+    starsStart: 0,
+    starsMid: 0,
+    starsEnd: 0,
+    twinkleStart: 0,
+    twinkleMid: 0,
+    twinkleEnd: 0
+  },
+  {
+    name: "night",
+    duration: 36000,
+    skyStart: ["#ff7b4a", "#ff9f5a", "#ffbb68", "#ff8f6b", "#ff6e5f"],
+    skyMid: ["#01040d", "#040b1d", "#0d1d40", "#142957", "#18335a"],
+    skyEnd: ["#5f66c4", "#87a8f2", "#8d7fd0", "#7f99d1", "#6c8dc6"],
+    starsStart: 0.18,
+    starsMid: 0.98,
+    starsEnd: 0.22,
+    twinkleStart: 0.08,
+    twinkleMid: 1,
+    twinkleEnd: 0.12
+  }
 ];
-const weatherPhases = [
-  { name: "clear" },
-  { name: "cloud" },
-  { name: "more-cloud" },
-  { name: "dark-cloud" },
-  { name: "light-cloud" },
-  { name: "windy" }
-];
+const dayNightCycleDuration = dayNightPhases.reduce(function (totalDuration, phase) {
+  return totalDuration + phase.duration;
+}, 0);
+const cloudFrequencyCycle = ["low", "medium", "high", "intense", "high", "medium"];
+const cloudDepthSettings = {
+  far: { duration: 30000, topMin: 6, topMax: 20 },
+  mid: { duration: 22000, topMin: 10, topMax: 28 },
+  near: { duration: 14000, topMin: 14, topMax: 34 }
+};
+const cloudSpawnIntervals = {
+  low: { far: 14000, mid: 18000, near: 22000 },
+  medium: { far: 9000, mid: 12000, near: 15000 },
+  high: { far: 5500, mid: 7500, near: 9500 },
+  intense: { far: 2400, mid: 3200, near: 4200 }
+};
 const snackRewardImages = {
   "🍓": "char.png",
   "🍪": "leaf.png",
@@ -105,8 +143,10 @@ let leftPressed = false;
 let rightPressed = false;
 let fallingItems = [];
 let floatingEffects = [];
+let carnivorousPlants = [];
 let animationId;
 let spawnTimer;
+let currentSpawnInterval = fallingItemSpawnIntervals.base;
 let lastFrameTime = 0;
 let activePointerId = null;
 let playerFlashUntil = 0;
@@ -114,10 +154,15 @@ let fireFormEndsAt = 0;
 let repeatedSoundToken = 0;
 let dayNightCycleStartedAt = performance.now();
 let weatherCycleStartedAt = performance.now();
-let activeDayNightPhaseKey = "";
-let activeWeatherPhaseKey = "";
 let nextFrogAt = 0;
 let nextBirdFlockAt = 0;
+let currentDayPhaseDebug = "";
+let currentDayRemainingMs = 0;
+let currentCloudOpacityDebug = "";
+let currentCloudOpacityRemainingMs = 0;
+let currentCloudFrequencyDebug = "";
+let currentCloudFrequencyRemainingMs = 0;
+let nextCloudSpawnAt = createCloudSpawnState();
 
 // Put the basket in the center when the page loads.
 resetBasket();
@@ -175,13 +220,10 @@ function startGame() {
   isPlaying = true;
   updateExitButtonState();
   playBackgroundMusic();
-  startScreen.classList.add("hidden");
-  gameOverScreen.classList.add("hidden");
-  winScreen.classList.add("hidden");
+  setVisibleScreen();
   document.body.classList.add("playing");
 
-  clearInterval(spawnTimer);
-  spawnTimer = setInterval(createFallingItem, 850);
+  refreshSpawnTimer();
 
   cancelAnimationFrame(animationId);
   animationId = requestAnimationFrame(gameLoop);
@@ -190,55 +232,38 @@ function startGame() {
 function endGame() {
   isPlaying = false;
   updateExitButtonState();
-  stopBackgroundMusic();
-  stopRepeatedSounds();
-  clearInterval(spawnTimer);
-  cancelAnimationFrame(animationId);
+  stopActiveGameplay();
   finalScoreDisplay.textContent = score;
-  document.body.classList.remove("playing");
   activePointerId = null;
   fireHint.classList.add("hidden");
-  gameOverScreen.classList.remove("hidden");
+  setVisibleScreen("gameOver");
 }
 
 function endGameWithWin() {
   isPlaying = false;
   updateExitButtonState();
-  stopBackgroundMusic();
-  stopRepeatedSounds();
-  clearInterval(spawnTimer);
-  cancelAnimationFrame(animationId);
-  document.body.classList.remove("playing");
+  stopActiveGameplay();
   activePointerId = null;
   fireHint.classList.add("hidden");
   resetSnackBarsOnly();
-  winScreen.classList.remove("hidden");
-  playSoundTimes(cheerSound, 3);
+  setVisibleScreen("win");
+  playSoundTimes(cheerSound, 2);
 }
 
 function exitGame() {
-  stopBackgroundMusic();
-  stopRepeatedSounds();
-  clearInterval(spawnTimer);
-  cancelAnimationFrame(animationId);
+  stopActiveGameplay();
   isPlaying = false;
   updateExitButtonState();
-  document.body.classList.remove("playing");
   activePointerId = null;
   resetGameState();
-  startScreen.classList.remove("hidden");
-  gameOverScreen.classList.add("hidden");
-  winScreen.classList.add("hidden");
+  setVisibleScreen("start");
 }
 
 function continueFromWin() {
-  stopBackgroundMusic();
-  stopRepeatedSounds();
+  stopActiveGameplay();
   resetGameState();
   updateExitButtonState();
-  startScreen.classList.remove("hidden");
-  gameOverScreen.classList.add("hidden");
-  winScreen.classList.add("hidden");
+  setVisibleScreen("start");
 }
 
 function gameLoop(currentTime) {
@@ -259,6 +284,8 @@ function gameLoop(currentTime) {
   updateFireTimer(currentTime);
   moveBasket(deltaTime);
   moveFallingItems(deltaTime);
+  updateCarnivorousPlants(currentTime);
+  checkPlantGrabs(currentTime);
   moveFloatingEffects(deltaTime);
   checkCollisions();
   removeMissedItems();
@@ -370,7 +397,9 @@ function createFallingItem() {
     x: x,
     y: startY,
     size: currentItemSize,
-    speed: isBomb ? baseBombSpeed * bombDifficulty.speedMultiplier : 2.8 + Math.random() * 1.6,
+    speed: isBomb
+      ? baseBombSpeed * bombDifficulty.speedMultiplier * getBombFormSpeedMultiplier()
+      : 2.8 + Math.random() * 1.6,
     type: isBomb ? "bomb" : "snack",
     snack: snack
   });
@@ -418,25 +447,16 @@ function checkCollisions() {
         return;
       }
 
-      score += 1;
-      snacksCaught += 1;
-      playSound(eatSound);
-      createScoreEffect("+1", "score-pickup", {
-        x: item.x + item.size / 2,
-        y: item.y
+      const gameWon = collectSnack(item, {
+        effectPosition: {
+          x: item.x + item.size / 2,
+          y: item.y
+        },
+        shouldSpawnLeafPlant: true
       });
-      if (currentPlayerImage === "leaf.png") {
-        addFlowerMarker(item);
-      }
-
-      addSnackScore(item.snack, item);
-      updateScore();
-      updateDetailScoreboards();
-      removeItem(item);
       index -= 1;
 
-      if (score >= winScore) {
-        endGameWithWin();
+      if (gameWon) {
         return;
       }
     }
@@ -454,6 +474,43 @@ function rectanglesTouch(rectA, rectB) {
 
 function updateScore() {
   scoreDisplay.textContent = score;
+  refreshSpawnTimer();
+}
+
+function getFallingItemSpawnInterval() {
+  if (score >= 80) {
+    return fallingItemSpawnIntervals.fast;
+  }
+
+  if (score >= 60) {
+    return fallingItemSpawnIntervals.medium;
+  }
+
+  return fallingItemSpawnIntervals.base;
+}
+
+function refreshSpawnTimer() {
+  const nextInterval = getFallingItemSpawnInterval();
+
+  if (!isPlaying && spawnTimer) {
+    clearInterval(spawnTimer);
+    spawnTimer = null;
+    currentSpawnInterval = nextInterval;
+    return;
+  }
+
+  if (!isPlaying) {
+    currentSpawnInterval = nextInterval;
+    return;
+  }
+
+  if (spawnTimer && currentSpawnInterval === nextInterval) {
+    return;
+  }
+
+  clearInterval(spawnTimer);
+  spawnTimer = setInterval(createFallingItem, nextInterval);
+  currentSpawnInterval = nextInterval;
 }
 
 function updateLives() {
@@ -482,19 +539,33 @@ function createEmptySnackScores() {
 function getBombDifficulty() {
   if (score >= 90) {
     return {
-      sizeMultiplier: 2.5,
+      sizeMultiplier: 4,
+      speedMultiplier: 3
+    };
+  }
+
+  if (score >= 80) {
+    return {
+      sizeMultiplier: 3,
       speedMultiplier: 2
     };
   }
 
-  if (score >= 70) {
+  if (score >= 65) {
+    return {
+      sizeMultiplier: 2.5,
+      speedMultiplier: 1.75
+    };
+  }
+
+  if (score >= 50) {
     return {
       sizeMultiplier: 2,
       speedMultiplier: 1.5
     };
   }
 
-  if (score >= 50) {
+  if (score >= 35) {
     return {
       sizeMultiplier: 1.5,
       speedMultiplier: 1.25
@@ -508,33 +579,62 @@ function getBombDifficulty() {
 }
 
 function getBombSpawnChance() {
-  if (score >= 95) {
-    return 1 / 2;
-  }
-
-  if (score >= 85) {
-    return 1 / 3;
+  if (score >= 90) {
+    return 0.45;
   }
 
   if (score >= 75) {
-    return 1 / 4;
+    return 0.35;
+  }
+
+  if (score >= 50) {
+    return 0.28;
   }
 
   return baseBombChance;
 }
 
+function getBombFormSpeedMultiplier() {
+  if (currentPlayerImage === "char.png") {
+    return 0.5;
+  }
+
+  return 1;
+}
+
+function getCurrentBombSpeed() {
+  const bombDifficulty = getBombDifficulty();
+  return baseBombSpeed * bombDifficulty.speedMultiplier * getBombFormSpeedMultiplier();
+}
+
 function applyBombDifficulty(item) {
   const bombDifficulty = getBombDifficulty();
   item.size = itemSize * bombDifficulty.sizeMultiplier;
-  item.speed = baseBombSpeed * bombDifficulty.speedMultiplier;
+  item.speed = getCurrentBombSpeed();
   item.element.style.width = item.size + "px";
   item.element.style.height = item.size + "px";
-  item.element.classList.toggle("spinning-bomb", score >= 80);
-  item.element.style.setProperty("--bomb-spin-duration", score >= 95 ? "1s" : "2s");
+  item.element.classList.toggle("spinning-bomb", score >= 65);
+  item.element.style.setProperty("--bomb-spin-duration", getBombSpinDuration());
 
   const maxX = gameArea.clientWidth - item.size;
   item.x = Math.max(0, Math.min(item.x, maxX));
   item.element.style.left = item.x + "px";
+}
+
+function getBombSpinDuration() {
+  if (score >= 90) {
+    return "0.333s";
+  }
+
+  if (score >= 80) {
+    return "1s";
+  }
+
+  if (score >= 65) {
+    return "2s";
+  }
+
+  return "2s";
 }
 
 function addSnackScore(snack, item) {
@@ -555,6 +655,39 @@ function addSnackScore(snack, item) {
   }
 
   updateSnackScoreboard();
+}
+
+function collectSnack(item, options) {
+  if (!item) {
+    return false;
+  }
+
+  const collectionOptions = options || {};
+  const effectPosition = collectionOptions.effectPosition || {
+    x: item.x + item.size / 2,
+    y: item.y
+  };
+
+  score += 1;
+  snacksCaught += 1;
+  playSound(eatSound);
+  createScoreEffect("+1", "score-pickup", effectPosition);
+
+  if (collectionOptions.shouldSpawnLeafPlant && currentPlayerImage === "leaf.png") {
+    addCarnivorousPlant(item);
+  }
+
+  addSnackScore(item.snack, item);
+  updateScore();
+  updateDetailScoreboards();
+  removeItem(item);
+
+  if (score >= winScore) {
+    endGameWithWin();
+    return true;
+  }
+
+  return false;
 }
 
 function activateSnackPower(snack) {
@@ -589,47 +722,146 @@ function updateSnackScoreboard() {
   });
 }
 
-function addFlowerMarker(item) {
-  if (!item) {
+function addCarnivorousPlant(item) {
+  if (!item || !plantLayer) {
     return;
   }
 
-  const flowerMarker = document.createElement("div");
-  flowerMarker.className = "flower-marker";
-  flowerMarker.textContent = "🌼";
-  flowerMarker.style.left = item.x + "px";
-  flowerMarker.style.top = item.y + "px";
-  gameArea.appendChild(flowerMarker);
+  const plantElement = document.createElement("div");
+  plantElement.className = "carnivorous-plant";
+
+  const stemElement = document.createElement("div");
+  stemElement.className = "plant-stem";
+
+  const headElement = document.createElement("div");
+  headElement.className = "plant-head";
+
+  const mouthElement = document.createElement("div");
+  mouthElement.className = "plant-mouth";
+
+  headElement.appendChild(mouthElement);
+  plantElement.appendChild(stemElement);
+  plantElement.appendChild(headElement);
+
+  const gameRect = gameArea.getBoundingClientRect();
+  const basketRect = basket.getBoundingClientRect();
+  const centerX = basketRect.left - gameRect.left + basketRect.width / 2;
+  const bottomOffset = gameRect.bottom - basketRect.bottom;
+  const plant = {
+    element: plantElement,
+    headElement: headElement,
+    anchorX: centerX,
+    bottomOffset: bottomOffset,
+    swaySeed: Math.random() * Math.PI * 2,
+    targetRotation: 0,
+    currentRotation: 0,
+    chompUntil: 0
+  };
+
+  plantElement.style.left = centerX + "px";
+  plantElement.style.bottom = bottomOffset + "px";
+  plantLayer.appendChild(plantElement);
+  carnivorousPlants.push(plant);
 }
 
-function clearFlowerMarkers() {
-  gameArea.querySelectorAll(".flower-marker").forEach(function (flowerMarker) {
-    flowerMarker.remove();
+function clearCarnivorousPlants() {
+  carnivorousPlants.forEach(function (plant) {
+    plant.element.remove();
   });
+  carnivorousPlants = [];
+}
+
+function updateCarnivorousPlants(currentTime) {
+  carnivorousPlants.forEach(function (plant) {
+    const idleWiggle = Math.sin((currentTime / 350) + plant.swaySeed) * 6;
+    const chompActive = currentTime < plant.chompUntil;
+    const chompProgress = chompActive ? 1 - ((plant.chompUntil - currentTime) / 260) : 0;
+    const lift = chompActive ? Math.sin(Math.max(0, Math.min(1, chompProgress)) * Math.PI) * 10 : 0;
+
+    if (!chompActive) {
+      plant.targetRotation = 0;
+    }
+
+    plant.currentRotation += (plant.targetRotation - plant.currentRotation) * 0.2;
+
+    plant.element.style.left = plant.anchorX + "px";
+    plant.element.style.bottom = (plant.bottomOffset + lift) + "px";
+    plant.element.style.transform = "translateX(-50%) rotate(" + plant.currentRotation + "deg) translateY(" + idleWiggle + "px)";
+    plant.element.classList.toggle("chomp", chompActive);
+    plant.headElement.style.transform = "scaleX(" + (chompActive ? 1.08 : 1) + ") scaleY(" + (chompActive ? 1.04 : 1) + ")";
+  });
+}
+
+function checkPlantGrabs(currentTime) {
+  if (currentPlayerImage !== "leaf.png") {
+    return;
+  }
+
+  for (let itemIndex = 0; itemIndex < fallingItems.length; itemIndex += 1) {
+    const item = fallingItems[itemIndex];
+
+    if (!item || item.type !== "snack" || item.claimedByPlant) {
+      continue;
+    }
+
+    const snackRect = item.element.getBoundingClientRect();
+    let chosenPlant = null;
+    let bestDistance = Infinity;
+
+    for (let plantIndex = 0; plantIndex < carnivorousPlants.length; plantIndex += 1) {
+      const plant = carnivorousPlants[plantIndex];
+      const plantRect = plant.element.getBoundingClientRect();
+
+      if (!rectanglesTouch(snackRect, plantRect)) {
+        continue;
+      }
+
+      const plantCenterX = plantRect.left + plantRect.width / 2;
+      const plantCenterY = plantRect.top + plantRect.height / 2;
+      const snackCenterX = snackRect.left + snackRect.width / 2;
+      const snackCenterY = snackRect.top + snackRect.height / 2;
+      const distance = Math.hypot(snackCenterX - plantCenterX, snackCenterY - plantCenterY);
+
+      if (distance < bestDistance) {
+        bestDistance = distance;
+        chosenPlant = {
+          plant: plant,
+          snackCenterX: snackCenterX,
+          snackCenterY: snackCenterY
+        };
+      }
+    }
+
+    if (!chosenPlant) {
+      continue;
+    }
+
+    item.claimedByPlant = true;
+    chosenPlant.plant.chompUntil = currentTime + 260;
+    chosenPlant.plant.targetRotation = Math.max(-14, Math.min(14, (chosenPlant.snackCenterX - chosenPlant.plant.anchorX) / 6));
+    const gameWon = collectSnack(item, {
+      effectPosition: {
+      x: chosenPlant.snackCenterX,
+      y: chosenPlant.snackCenterY
+      }
+    });
+    itemIndex -= 1;
+
+    if (gameWon) {
+      return;
+    }
+  }
 }
 
 function createLifeEffect(text, effectType, position) {
-  if (!position) {
-    return;
-  }
-
-  const effectElement = document.createElement("div");
-  effectElement.className = "floating-life-effect " + effectType;
-  effectElement.textContent = text;
-  effectElement.style.left = position.x + "px";
-  effectElement.style.top = position.y + "px";
-  gameArea.appendChild(effectElement);
-
-  floatingEffects.push({
-    element: effectElement,
-    x: position.x,
-    y: position.y,
-    speed: floatingEffectSpeed,
-    expiresAt: performance.now() + lifeEffectLifetime
-  });
+  createFloatingEffect(text, effectType, position);
 }
 
 function createScoreEffect(text, effectType, position) {
+  createFloatingEffect(text, effectType, position);
+}
+
+function createFloatingEffect(text, effectType, position) {
   if (!position) {
     return;
   }
@@ -693,6 +925,7 @@ function resetGameState() {
   lockedSnack = null;
   fireFormEndsAt = 0;
   setPlayerForm(starterPlayerImage, false);
+  clearCarnivorousPlants();
   clearFallingItems();
   clearFloatingEffects();
   lastFrameTime = 0;
@@ -717,7 +950,7 @@ function setPlayerForm(playerImage, shouldFlash) {
   const previousFormSnack = formSnackByImage[currentPlayerImage] || null;
 
   if (currentPlayerImage === "leaf.png" && playerImage !== "leaf.png") {
-    clearFlowerMarkers();
+    clearCarnivorousPlants();
   }
 
   if (previousFormSnack && playerImage !== currentPlayerImage) {
@@ -733,6 +966,11 @@ function setPlayerForm(playerImage, shouldFlash) {
   fireHint.classList.toggle("hidden", playerImage !== "fire.png");
   fireTimerDisplay.textContent = playerImage === "fire.png" ? "15s" : "";
   fireFormEndsAt = playerImage === "fire.png" ? performance.now() + fireFormDuration : 0;
+  fallingItems.forEach(function (item) {
+    if (item.type === "bomb") {
+      item.speed = getCurrentBombSpeed();
+    }
+  });
   updatePlayerImage();
   updateSnackScoreboard();
 
@@ -768,11 +1006,11 @@ function destroyBomb(item) {
     return;
   }
 
-  score += 3;
+  score += 1;
   burnedCount += 1;
   updateScore();
   updateDetailScoreboards();
-  createScoreEffect("+3", "score-bonus", {
+  createScoreEffect("+1", "score-bonus", {
     x: item.x + item.size / 2,
     y: item.y
   });
@@ -846,106 +1084,295 @@ function resetWorldEnvironment() {
   const now = performance.now();
   dayNightCycleStartedAt = now;
   weatherCycleStartedAt = now;
-  activeDayNightPhaseKey = "";
-  activeWeatherPhaseKey = "";
-  applyDayNightPhase(dayNightPhases[0]);
-  applyWeatherPhase(weatherPhases[0]);
-  updateCelestialPositions(dayNightPhases[0].name, 0);
+  applyInterpolatedDayNight(dayNightPhases[0], 0);
+  resetCloudSystem(now);
+  updateCelestialPositions(dayNightPhases[0].name, 0, dayNightPhases[0].duration);
   resetAmbientProps(now);
 }
 
 function updateWorldEnvironment(currentTime) {
   updateDayNightCycle(currentTime);
   updateWeatherCycle(currentTime);
+  updateDebugOverlay();
 }
 
 function updateDayNightCycle(currentTime) {
-  const cycleDuration = dayNightPhases.length * dayNightPhaseDuration;
-  const elapsedInCycle = (currentTime - dayNightCycleStartedAt) % cycleDuration;
-  const phaseIndex = Math.floor(elapsedInCycle / dayNightPhaseDuration);
-  const elapsedInPhase = elapsedInCycle % dayNightPhaseDuration;
-  const phase = dayNightPhases[phaseIndex];
+  const elapsedInCycle = (currentTime - dayNightCycleStartedAt) % dayNightCycleDuration;
+  const phaseState = getDayNightPhaseState(elapsedInCycle);
+  const phaseProgress = phaseState.elapsedInPhase / phaseState.phase.duration;
 
-  applyDayNightPhase(phase);
-  updateCelestialPositions(phase.name, elapsedInPhase);
+  applyInterpolatedDayNight(phaseState.phase, phaseProgress);
+  updateCelestialPositions(phaseState.phase.name, phaseState.elapsedInPhase, phaseState.phase.duration);
+  currentDayPhaseDebug = phaseState.phase.name;
+  currentDayRemainingMs = phaseState.phase.duration - phaseState.elapsedInPhase;
 }
 
 function updateWeatherCycle(currentTime) {
-  const cycleDuration = weatherPhases.length * weatherPhaseDuration;
-  const elapsedInCycle = (currentTime - weatherCycleStartedAt) % cycleDuration;
-  const phaseIndex = Math.floor(elapsedInCycle / weatherPhaseDuration);
+  const opacityCycleDuration = cloudOpacityCycle.length * weatherPhaseDuration;
+  const opacityElapsedInCycle = (currentTime - weatherCycleStartedAt) % opacityCycleDuration;
+  const opacityIndex = Math.floor(opacityElapsedInCycle / weatherPhaseDuration);
+  const opacityElapsedInPhase = opacityElapsedInCycle % weatherPhaseDuration;
+  const cloudOpacity = cloudOpacityCycle[opacityIndex];
 
-  applyWeatherPhase(weatherPhases[phaseIndex]);
+  gameArea.style.setProperty("--cloud-opacity", String(cloudOpacity));
+  currentCloudOpacityDebug = String(cloudOpacity);
+  currentCloudOpacityRemainingMs = weatherPhaseDuration - opacityElapsedInPhase;
+
+  const frequencyCycleDuration = cloudFrequencyCycle.length * cloudFrequencyDuration;
+  const frequencyElapsedInCycle = (currentTime - weatherCycleStartedAt) % frequencyCycleDuration;
+  const frequencyIndex = Math.floor(frequencyElapsedInCycle / cloudFrequencyDuration);
+  const frequencyElapsedInPhase = frequencyElapsedInCycle % cloudFrequencyDuration;
+  const frequencyKey = cloudFrequencyCycle[frequencyIndex];
+
+  spawnCloudsForFrequency(currentTime, frequencyKey);
+  currentCloudFrequencyDebug = frequencyKey;
+  currentCloudFrequencyRemainingMs = cloudFrequencyDuration - frequencyElapsedInPhase;
 }
 
-function applyDayNightPhase(phase) {
-  const phaseKey = phase.name;
+function applyInterpolatedDayNight(phase, progress) {
+  const phaseCurve = getThreePointPhaseCurve(progress);
 
-  if (phaseKey === activeDayNightPhaseKey) {
-    return;
+  phase.skyStart.forEach(function (color, index) {
+    let interpolatedColor;
+
+    if (phaseCurve.segment === "start-mid") {
+      interpolatedColor = interpolateColor(color, phase.skyMid[index], phaseCurve.progress);
+    } else {
+      interpolatedColor = interpolateColor(phase.skyMid[index], phase.skyEnd[index], phaseCurve.progress);
+    }
+
+    gameArea.style.setProperty("--sky-" + (index + 1), interpolatedColor);
+  });
+
+  const starOpacity = phaseCurve.segment === "start-mid"
+    ? interpolateNumber(phase.starsStart, phase.starsMid, phaseCurve.progress)
+    : interpolateNumber(phase.starsMid, phase.starsEnd, phaseCurve.progress);
+  const twinkleOpacity = phaseCurve.segment === "start-mid"
+    ? interpolateNumber(phase.twinkleStart, phase.twinkleMid, phaseCurve.progress)
+    : interpolateNumber(phase.twinkleMid, phase.twinkleEnd, phaseCurve.progress);
+
+  gameArea.style.setProperty("--star-opacity", starOpacity.toFixed(3));
+  gameArea.style.setProperty("--star-twinkle-opacity", twinkleOpacity.toFixed(3));
+}
+
+function getThreePointPhaseCurve(progress) {
+  if (progress <= 0.5) {
+    return {
+      segment: "start-mid",
+      progress: clamp(progress / 0.5, 0, 1)
+    };
   }
 
-  gameArea.classList.remove(
-    "day-morning",
-    "day-noon",
-    "day-sunset",
-    "day-evening",
-    "day-midnight",
-    "day-dawn"
-  );
-  gameArea.classList.add("day-" + phase.name);
-
-  activeDayNightPhaseKey = phaseKey;
+  return {
+    segment: "mid-end",
+    progress: clamp((progress - 0.5) / 0.5, 0, 1)
+  };
 }
 
-function applyWeatherPhase(phase) {
-  const phaseKey = phase.name;
-
-  if (phaseKey === activeWeatherPhaseKey) {
-    return;
-  }
-
-  gameArea.classList.remove(
-    "weather-clear",
-    "weather-cloud",
-    "weather-more-cloud",
-    "weather-dark-cloud",
-    "weather-light-cloud",
-    "weather-windy"
-  );
-  gameArea.classList.add("weather-" + phase.name);
-
-  activeWeatherPhaseKey = phaseKey;
-}
-
-function updateCelestialPositions(phaseName, elapsedInPhase) {
-  let sunX = -12;
-  let sunY = 10;
-  let moonX = -12;
-  let moonY = 10;
+function updateCelestialPositions(phaseName, elapsedInPhase, phaseDuration) {
+  const gameWidth = gameArea.clientWidth;
+  const sunSize = getCelestialSize(sunElement, 118);
+  const moonSize = getCelestialSize(moonElement, 118);
+  let sunX = -sunSize;
+  let sunY = sunSize / 2;
+  let moonX = -moonSize;
+  let moonY = moonSize / 2;
   let sunOpacity = 0;
   let moonOpacity = 0;
+  const celestialStartDelay = 12000;
+  const celestialTravelDuration = 12000;
 
-  if (phaseName === "noon") {
-    const progress = elapsedInPhase / dayNightPhaseDuration;
-    sunX = -12 + progress * 124;
-    sunY = 10;
-    sunOpacity = 0.98;
+  if (phaseName === "day") {
+    const progress = clamp((elapsedInPhase - celestialStartDelay) / celestialTravelDuration, 0, 1);
+    sunX = -sunSize + progress * (gameWidth + sunSize * 2);
+    sunY = sunSize / 2;
+    sunOpacity = getCelestialOpacity(
+      elapsedInPhase,
+      celestialStartDelay,
+      celestialTravelDuration,
+      1500,
+      0.98
+    );
   }
 
-  if (phaseName === "midnight") {
-    const progress = elapsedInPhase / dayNightPhaseDuration;
-    moonX = -12 + progress * 124;
-    moonY = 10;
-    moonOpacity = 0.96;
+  if (phaseName === "night") {
+    const progress = clamp((elapsedInPhase - celestialStartDelay) / celestialTravelDuration, 0, 1);
+    moonX = -moonSize + progress * (gameWidth + moonSize * 2);
+    moonY = moonSize / 2;
+    moonOpacity = getCelestialOpacity(
+      elapsedInPhase,
+      celestialStartDelay,
+      celestialTravelDuration,
+      1500,
+      0.96
+    );
   }
 
-  gameArea.style.setProperty("--sun-x", sunX + "%");
-  gameArea.style.setProperty("--sun-y", sunY + "%");
-  gameArea.style.setProperty("--moon-x", moonX + "%");
-  gameArea.style.setProperty("--moon-y", moonY + "%");
+  gameArea.style.setProperty("--sun-x", sunX + "px");
+  gameArea.style.setProperty("--sun-y", sunY + "px");
+  gameArea.style.setProperty("--moon-x", moonX + "px");
+  gameArea.style.setProperty("--moon-y", moonY + "px");
   gameArea.style.setProperty("--sun-opacity", String(sunOpacity));
   gameArea.style.setProperty("--moon-opacity", String(moonOpacity));
+}
+
+function getCelestialOpacity(elapsedInPhase, startDelay, travelDuration, fadeWindowMs, peakOpacity) {
+  if (elapsedInPhase < startDelay || elapsedInPhase > startDelay + travelDuration) {
+    return 0;
+  }
+
+  const elapsedInTravel = elapsedInPhase - startDelay;
+  const timeToEnd = travelDuration - elapsedInTravel;
+  const fadeIn = fadeWindowMs > 0 ? clamp(elapsedInTravel / fadeWindowMs, 0, 1) : 1;
+  const fadeOut = fadeWindowMs > 0 ? clamp(timeToEnd / fadeWindowMs, 0, 1) : 1;
+
+  return Math.min(fadeIn, fadeOut) * peakOpacity;
+}
+
+function getDayNightPhaseState(elapsedInCycle) {
+  let accumulatedDuration = 0;
+
+  for (let index = 0; index < dayNightPhases.length; index += 1) {
+    const phase = dayNightPhases[index];
+    const nextAccumulatedDuration = accumulatedDuration + phase.duration;
+
+    if (elapsedInCycle < nextAccumulatedDuration) {
+      return {
+        phase: phase,
+        phaseIndex: index,
+        elapsedInPhase: elapsedInCycle - accumulatedDuration
+      };
+    }
+
+    accumulatedDuration = nextAccumulatedDuration;
+  }
+
+  return {
+    phase: dayNightPhases[dayNightPhases.length - 1],
+    phaseIndex: dayNightPhases.length - 1,
+    elapsedInPhase: dayNightPhases[dayNightPhases.length - 1].duration
+  };
+}
+
+function updateDebugOverlay() {
+  if (!debugOverlay) {
+    return;
+  }
+
+  const daySeconds = formatDebugSeconds(currentDayRemainingMs);
+  const cloudOpacitySeconds = formatDebugSeconds(currentCloudOpacityRemainingMs);
+  const cloudFrequencySeconds = formatDebugSeconds(currentCloudFrequencyRemainingMs);
+  debugOverlay.textContent =
+    "Day: " + formatDebugLabel(currentDayPhaseDebug) + " " + daySeconds + "s"
+    + "\nCloud opacity: " + currentCloudOpacityDebug + " " + cloudOpacitySeconds + "s"
+    + "\nCloud freq: " + formatDebugLabel(currentCloudFrequencyDebug) + " " + cloudFrequencySeconds + "s";
+}
+
+function formatDebugSeconds(milliseconds) {
+  return (Math.max(milliseconds, 0) / 1000).toFixed(1);
+}
+
+function formatDebugLabel(label) {
+  return String(label || "").replace(/-/g, " ");
+}
+
+function getCelestialSize(element, fallbackSize) {
+  if (!element) {
+    return fallbackSize;
+  }
+
+  return element.offsetWidth || fallbackSize;
+}
+
+function interpolateNumber(startValue, endValue, progress) {
+  return startValue + (endValue - startValue) * progress;
+}
+
+function clamp(value, min, max) {
+  return Math.max(min, Math.min(value, max));
+}
+
+function interpolateColor(startHex, endHex, progress) {
+  const startRgb = hexToRgb(startHex);
+  const endRgb = hexToRgb(endHex);
+  const red = Math.round(interpolateNumber(startRgb.r, endRgb.r, progress));
+  const green = Math.round(interpolateNumber(startRgb.g, endRgb.g, progress));
+  const blue = Math.round(interpolateNumber(startRgb.b, endRgb.b, progress));
+
+  return "rgb(" + red + ", " + green + ", " + blue + ")";
+}
+
+function hexToRgb(hex) {
+  const normalized = hex.replace("#", "");
+  const value = normalized.length === 3
+    ? normalized.split("").map(function (digit) {
+        return digit + digit;
+      }).join("")
+    : normalized;
+
+  return {
+    r: Number.parseInt(value.slice(0, 2), 16),
+    g: Number.parseInt(value.slice(2, 4), 16),
+    b: Number.parseInt(value.slice(4, 6), 16)
+  };
+}
+
+function createCloudSpawnState() {
+  return {
+    far: 0,
+    mid: 0,
+    near: 0
+  };
+}
+
+function resetCloudSystem(currentTime) {
+  clearClouds();
+  nextCloudSpawnAt = createCloudSpawnState();
+  nextCloudSpawnAt.far = currentTime + randomBetween(1000, 2600);
+  nextCloudSpawnAt.mid = currentTime + randomBetween(2200, 4200);
+  nextCloudSpawnAt.near = currentTime + randomBetween(4200, 6400);
+  gameArea.style.setProperty("--cloud-opacity", String(cloudOpacityCycle[0]));
+  currentCloudOpacityDebug = String(cloudOpacityCycle[0]);
+  currentCloudOpacityRemainingMs = weatherPhaseDuration;
+  currentCloudFrequencyDebug = cloudFrequencyCycle[0];
+  currentCloudFrequencyRemainingMs = cloudFrequencyDuration;
+}
+
+function spawnCloudsForFrequency(currentTime, frequencyKey) {
+  const intervals = cloudSpawnIntervals[frequencyKey];
+
+  Object.keys(intervals).forEach(function (depth) {
+    while (currentTime >= nextCloudSpawnAt[depth]) {
+      spawnCloud(depth);
+      nextCloudSpawnAt[depth] += intervals[depth];
+    }
+  });
+}
+
+function spawnCloud(depth) {
+  if (!cloudLayer || !cloudDepthSettings[depth]) {
+    return;
+  }
+
+  const cloud = document.createElement("div");
+  const depthSettings = cloudDepthSettings[depth];
+  const travelDistance = gameArea.clientWidth + 460;
+
+  cloud.className = "cloud depth-" + depth + " cloud-dynamic";
+  cloud.style.top = randomBetween(depthSettings.topMin, depthSettings.topMax) + "%";
+  cloud.style.left = "-220px";
+  cloud.style.setProperty("--cloud-duration", depthSettings.duration / 1000 + "s");
+  cloud.style.setProperty("--cloud-travel", travelDistance + "px");
+  cloud.addEventListener("animationend", function () {
+    cloud.remove();
+  });
+  cloudLayer.appendChild(cloud);
+}
+
+function clearClouds() {
+  if (cloudLayer) {
+    cloudLayer.textContent = "";
+  }
 }
 
 function resetAmbientProps(currentTime) {
@@ -972,11 +1399,18 @@ function spawnAmbientFrog() {
   }
 
   const frog = document.createElement("div");
+  const startsFromLeft = Math.random() < 0.5;
   frog.className = "ambient-prop ambient-frog";
   frog.textContent = "🐸";
   frog.style.bottom = randomBetween(4, 10) + "%";
-  frog.style.setProperty("--ambient-duration", randomBetween(6.4, 9.2) + "s");
-  frog.style.setProperty("--prop-travel", "-" + (gameArea.clientWidth + 180) + "px");
+  frog.style.setProperty("--ambient-duration", randomBetween(7.8, 10.5) + "s");
+  frog.style.setProperty(
+    "--prop-travel",
+    (startsFromLeft ? "" : "-") + (gameArea.clientWidth + 180) + "px"
+  );
+  frog.style.setProperty("--frog-scale-x", startsFromLeft ? "1" : "-1");
+  frog.style.left = startsFromLeft ? "-70px" : "auto";
+  frog.style.right = startsFromLeft ? "auto" : "-70px";
   frog.addEventListener("animationend", function () {
     frog.remove();
   });
@@ -988,16 +1422,38 @@ function spawnBirdFlock() {
     return;
   }
 
-  const birds = document.createElement("div");
-  birds.className = "ambient-prop ambient-birds";
-  birds.textContent = "🐦  🐦  🐦";
-  birds.style.top = randomBetween(9, 24) + "%";
-  birds.style.setProperty("--ambient-duration", randomBetween(8.5, 12.5) + "s");
-  birds.style.setProperty("--prop-travel", gameArea.clientWidth + 260 + "px");
-  birds.addEventListener("animationend", function () {
-    birds.remove();
+  const flock = document.createElement("div");
+  const birdCount = Math.max(1, Math.floor(randomBetween(1, 11)));
+  const flockColor = pickRandomBirdColor();
+
+  flock.className = "ambient-prop ambient-birds";
+  flock.style.top = randomBetween(9, 24) + "%";
+  flock.style.setProperty("--ambient-duration", randomBetween(9.5, 13.5) + "s");
+  flock.style.setProperty("--prop-travel", "-" + (gameArea.clientWidth + 280) + "px");
+  flock.style.color = flockColor;
+
+  for (let index = 0; index < birdCount; index += 1) {
+    const bird = document.createElement("span");
+    bird.className = "ambient-bird";
+    bird.textContent = "🐦";
+    bird.style.setProperty("--bird-wave-duration", randomBetween(1.4, 2.6) + "s");
+    bird.style.setProperty("--bird-wave-offset", randomBetween(-0.8, 0.8) + "s");
+    bird.style.setProperty("--bird-wave-height", randomBetween(4, 12) + "px");
+    bird.style.setProperty("--bird-scale", randomBetween(0.78, 1.18).toFixed(2));
+    bird.style.marginTop = randomBetween(-8, 8) + "px";
+    flock.appendChild(bird);
+  }
+
+  flock.addEventListener("animationend", function () {
+    flock.remove();
   });
-  ambientPropsLayer.appendChild(birds);
+  ambientPropsLayer.appendChild(flock);
+}
+
+function pickRandomBirdColor() {
+  const birdColors = ["#ffffff", "#ffe082", "#ffccbc", "#c5e1a5", "#b3e5fc", "#d1c4e9"];
+  const randomIndex = Math.floor(Math.random() * birdColors.length);
+  return birdColors[randomIndex];
 }
 
 function clearAmbientProps() {
@@ -1123,6 +1579,20 @@ function stopRepeatedSounds() {
   repeatedSoundToken += 1;
   cheerSound.pause();
   cheerSound.currentTime = 0;
+}
+
+function stopActiveGameplay() {
+  stopBackgroundMusic();
+  stopRepeatedSounds();
+  clearInterval(spawnTimer);
+  cancelAnimationFrame(animationId);
+  document.body.classList.remove("playing");
+}
+
+function setVisibleScreen(screenName) {
+  startScreen.classList.toggle("hidden", screenName !== "start");
+  gameOverScreen.classList.toggle("hidden", screenName !== "gameOver");
+  winScreen.classList.toggle("hidden", screenName !== "win");
 }
 
 window.addEventListener("resize", function () {

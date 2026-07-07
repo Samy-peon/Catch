@@ -1,207 +1,261 @@
 # GAME_RULES.md
 
 This file is the living rule book for the current game.
-Whenever the game changes, this file should be updated so it matches the latest behavior.
+Whenever the game changes, this document should be updated to match the real behavior.
 
-## Current game summary
+## 1. Game overview
 
+- The game is `Snack Catcher`.
 - The player starts as `eevee.png`.
-- The game keeps a total score, individual snack counters, and a life counter.
-- The game starts with `2` lives.
-- The game uses local sound effects for snack, bomb, and form-change events.
-- The game also uses local sound effects for bomb drops and the congratulations screen.
-- The game uses `background_music.mp3` as looping background music during active gameplay only.
-- Life gains and life losses show floating text effects inside the game area.
-- The game ends in a win when the total score reaches `100`.
-- The start screen tells the player to score `100` points to beat the level.
-- Restarting or exiting resets the game back to its starting state.
-- The page layout keeps the title, HUD, and hint text aligned to the left side.
-- The playable game area fills the full browser height from top to bottom.
-- The title, score, lives, exit button, snack bars, and hint live in a separate left HUD pane.
-- The HUD pane and the game pane are two side-by-side sections with a visible separation between them.
-- The exit button sits at the bottom-left area of the HUD pane.
-- The exit button is grayed out whenever the game is not actively running.
-- The game world includes animated sky motion with moving clouds, weather, and a day/night cycle.
+- The win condition is reaching a total score of `100`.
+- Restarting, exiting, or continuing from the win screen resets the run back to the starting state unless a rule below says otherwise.
+- The game uses local image and audio assets already in the folder.
 
-## Snack items
+## 2. Core HUD and layout
+
+- The page uses a left HUD pane and a right game pane.
+- The title, score, lives, snack progress bars, hint text, and exit button live in the left HUD pane.
+- The playable game area fills the full browser height in the right pane.
+- The HUD and game world are visually separated as two side-by-side panes.
+- The exit button sits near the bottom-left of the HUD.
+- The exit button is disabled whenever the game is not actively running.
+- A temporary debug overlay appears at the top-right of the game pane and shows the current day/night phase plus cloud timing information.
+
+## 3. Items, score, and lives
+
+### Snack types
 
 - Strawberry: `🍓`
 - Cookie: `🍪`
 - Donut: `🍩`
 - Apple: `🍎`
 
-## Player form rules
+### Base scoring rules
 
-- The player changes form after collecting `5` of the same snack.
-- Only the current form's special property should stay active.
-- When the player changes to a different png form, the old form's special property is removed.
+- Catching a snack adds `1` point to the total score.
+- Catching a snack also counts as one caught snack for the `Snack X / Y` HUD.
+- Every snack pickup shows a yellow `+1` floating text effect.
+- The snack pickup sound `Eat.m4a` plays when a snack is eaten.
+- The game starts with `2` lives.
+- Losing a life shows a red `-1` floating text effect.
+- Gaining a life shows a green `+1` floating text effect.
+- Floating score and life effects last `3` seconds, float upward, and disappear at the top of the view.
 
-### Form effects
+### Snack and bomb counters
 
-- `eevee.png`
-  - Default form
-  - Normal movement speed
-  - No bomb immunity
-  - No flower effect
+- `Snack X / Y`
+  - `X` is the number of snacks successfully caught.
+  - `Y` is the total number of snacks that spawned and fell from the sky, including caught and missed snacks.
+- `Burned Z`
+  - `Z` is the number of bombs destroyed while the player is in `fire.png` form.
 
-- `char.png`
-  - Trigger: collect `5` strawberries
-  - Immediate effect: add `1` life
-  - Visual effect: show a green `+1` text when life is added
-  - No ongoing special property after the life gain
+## 4. Form system
 
-- `leaf.png`
-  - Trigger: collect `5` cookies
-  - Ongoing effect: whenever any new snack is eaten while this form is active, place a static flower at that catch location
-  - When the player changes away from `leaf.png`, remove all static flowers
-
-- `light.png`
-  - Trigger: collect `5` donuts
-  - Ongoing effect: double player movement speed
-
-- `fire.png`
-  - Trigger: collect `5` apples
-  - Ongoing effect: bomb immunity
-  - This form lasts `15` seconds unless the player changes form earlier
-  - Show a large countdown in seconds centered in the game pane while this form is active
-  - The `You are now invincible` label is smaller than the countdown number
-  - When the timer ends, return to `eevee.png` and remove the special properties
-  - Show a top-of-game hint: `You are now invincible`
-  - If this form touches a bomb, the bomb should play a destroyed-looking flicker and explosion effect
-  - If this form touches a bomb, add `3` points to the total score
-  - Show a yellow `+3` text effect at the bomb location
-
-### Form change visuals
-
-- Whenever the player changes to a new form, the player should flash for `3` seconds.
+- Collecting `5` of the same snack fills that snack bar and changes the player to the matching form.
+- Only one form effect can be active at a time.
+- Changing to a different form removes the previous form's ongoing property.
+- When a form changes, the previous form's snack bar resets to `0`.
+- Each form change flashes the player for `3` seconds.
 - The flash frequency is `0.25` seconds.
-- Play `Change.m4a` when the player changes to a new form.
+- `Change.m4a` plays when the player changes to a new form.
 
-## Bomb rules
+### `eevee.png`
 
-- Bomb logic stays in the game.
-- Bombs become harder based on total score:
-  - At `50+` score: bomb display size and collision become `150%` of original, and bomb drop speed becomes `125%` of original
-  - At `70+` score: bomb display size and collision become `200%` of original, and bomb drop speed becomes `150%` of original
-  - At `90+` score: bomb display size and collision become `250%` of original, and bomb drop speed becomes `200%` of original
-  - At `75+` score: bomb frequency becomes `1 in 4`
-  - At `80+` score: the bomb image spins clockwise visually, one full rotation every `2` seconds
-  - At `85+` score: bomb frequency becomes `1 in 3`
-  - At `95+` score: bomb frequency becomes `1 in 2`
-  - At `95+` score: the bomb spin speeds up to one full rotation every `1` second
-  - The spin is visual only and does not change the collision size by itself
-- Bombs reduce life by `1` unless the current form is immune to bombs.
-- Every snack pickup shows a yellow `+1` text effect.
-- Play `Eat.m4a` whenever a snack is picked up.
-- Play `Explode.m4a` whenever a bomb is touched or destroyed by `fire.png`.
-- Play `Dropbomb.m4a` whenever a bomb starts to drop.
-- When life is lost, show a red `-1` text effect.
-- The yellow snack `+1`, green life `+1`, and red `-1` text effects persist for `3` seconds, float upward, and disappear at the top of the view.
-- The floating life text moves upward at the same speed used by the falling snack movement.
-- The yellow `+3` score effect also persists for `3` seconds, floats upward, and disappears near the top of the view.
-- When life is lost, the player changes back to `eevee.png`.
-- When life is lost, all special properties are removed.
-- If a bomb hits when no life remains after damage, the game ends immediately.
+- This is the default form.
+- Normal movement speed.
+- No bomb immunity.
+- No special passive ability.
 
-## Scoreboard rules
+### `char.png`
 
-- Keep the total score.
-- Keep a life scoreboard.
-- Show a `Snack X/Y` scoreboard in two lines under the main score area.
-- In `Snack X/Y`, `X` is the number of snacks caught and `Y` is the total number of snacks that fell from the sky, including both caught and missed snacks.
-- Show a `Burned Z` scoreboard beside the snack catch/drop scoreboard.
-- In `Burned Z`, `Z` is the number of bombs destroyed while in the burn/fire state.
-- The `Snack` and `Burned` scoreboards are center-aligned like the main `Score` and `Lives` boxes.
-- Each snack uses a `5`-step progress bar instead of a number counter.
-- The emoji and snack label stay on the same line as the progress bar.
-- Each snack progress bar is wider than before for easier reading.
-- The spacing between progress segments is tight enough that the right-most segment remains fully visible inside the HUD pane.
-- All four snack progress bars share the same left edge and width, aligned to the widest snack label row.
-- The snack bar colors are:
+- Trigger: collect `5` strawberries.
+- Immediate effect: add `1` life.
+- Ongoing effect: bomb fall speed is reduced by `50%` while this form is active.
+
+### `leaf.png`
+
+- Trigger: collect `5` cookies.
+- Each snack caught by the player while this form is active creates one carnivorous plant trap.
+- The plant is placed on the same ground line as the player, using the player's bottom position as the spawn baseline.
+- The plant uses a tall cartoon mouth-up design with a visible red tongue.
+- The plant is about twice as tall as the player and uses roughly the player's width as its hitbox width.
+- Plants remain in the game area while the player stays in `leaf.png`.
+- Plants idle with a visible but small wiggle or fidget motion.
+- If a falling snack touches a plant hitbox, one valid plant grabs that snack.
+- A grabbed snack is removed, awards `+1` point, counts as a caught snack, shows the normal yellow snack score effect, and uses the normal snack pickup sound.
+- If more than one plant could grab the same snack, only one plant gets it.
+- Plants do not grab bombs.
+- Changing away from `leaf.png` removes all carnivorous plants.
+
+### `light.png`
+
+- Trigger: collect `5` donuts.
+- Ongoing effect: player movement speed is doubled.
+
+### `fire.png`
+
+- Trigger: collect `5` apples.
+- Ongoing effect: bomb immunity.
+- Duration: `15` seconds unless another form change happens first.
+- The text `You are now invincible` appears while this form is active.
+- A large countdown in seconds appears centered in the game pane while this form is active.
+- The label text is smaller than the countdown number.
+- When the timer ends, the player returns to `eevee.png`.
+- If the player touches a bomb in this form:
+  - The bomb plays a destroyed-looking flicker and explosion effect.
+  - `Explode.m4a` plays.
+  - The player gains `1` point.
+  - A yellow `+1` floating text appears at the bomb location.
+  - The destroyed bomb increments the `Burned` counter.
+
+## 5. Snack progress bars
+
+- Each snack uses a `5`-segment progress bar instead of a numeric counter.
+- The emoji and Chinese snack label stay on the same line as the bar.
+- All four bars align to the same left edge and width.
+- The right-most segment stays fully visible inside the HUD frame.
+- The bar colors are:
   - Strawberry: light pink
   - Cookie: light green
   - Donut: yellow
   - Apple: red
-- When a snack bar reaches `5`, it turns light blue and pulses with a more obvious charged state.
-- A full snack bar stops counting more of that snack until it resets.
-- When the player changes away from a form, that old form's snack bar resets to `0` and can charge again.
-- All counters reset on restart or exit.
-- The scoreboard area is more compact so more height is available for the actual game pane.
-- The overall layout leaves minimal empty space outside the HUD and the game world.
+- When a snack bar reaches `5`, it turns light blue and pulses in a clearly stronger charged state.
+- A charged bar stops counting additional snacks of that same type until it resets.
+- Leaving a form resets that form's bar to `0` so it can be charged again later.
 
-## Controls and flow
+## 6. Falling-item spawn rules
 
-- The game has a start button.
-- The background music starts when gameplay starts.
-- The background music is stopped on the start screen, after exit, after game over, and on the congratulations screen.
-- The exit button is disabled on the start screen and other non-playing screens.
-- The game has a play-again button after game over.
-- The game has a congratulations screen when the total score reaches `100`.
-- When the congratulations screen appears, play `cheer.m4a` `3` times.
-- When the game enters the congratulations screen, the individual snack scores and bars reset to `0`.
-- While the congratulations screen is showing, keep the total score and lives unchanged until the player presses continue.
-- The congratulations screen has a continue button that resets the game to the initial state and start screen.
-- The game has an exit button that ends the current run and resets the game to the start state.
+- All falling items share one global spawn timer.
+- Spawn timing is score-based:
+  - Score below `60`: `850ms`
+  - Score `60+`: `600ms`
+  - Score `80+`: `400ms`
+- Each spawn creates either a snack or a bomb.
 
-## World atmosphere
+## 7. Bomb rules
 
-- The game world has three separate ambient systems:
+### Bomb spawn chance
+
+- Below score `50`: base chance `0.22`
+- Score `50+`: chance `0.28`
+- Score `75+`: chance `0.35`
+- Score `90+`: chance `0.45`
+
+### Bomb difficulty by score
+
+- Score `35+`
+  - Size multiplier: `1.5x`
+  - Speed multiplier: `1.25x`
+- Score `50+`
+  - Size multiplier: `2x`
+  - Speed multiplier: `1.5x`
+- Score `65+`
+  - Size multiplier: `2.5x`
+  - Speed multiplier: `1.75x`
+  - Visual spin: `1` rotation every `2` seconds
+- Score `80+`
+  - Size multiplier: `3x`
+  - Speed multiplier: `2x`
+  - Visual spin: `1` rotation every `1` second
+- Score `90+`
+  - Size multiplier: `4x`
+  - Speed multiplier: `3x`
+  - Visual spin: `1` rotation every `0.333` seconds
+
+### Bomb interaction rules
+
+- Bombs reduce life by `1` unless the current form is immune.
+- `Explode.m4a` plays whenever a bomb is touched or destroyed by `fire.png`.
+- `Dropbomb.m4a` plays whenever a bomb begins to fall.
+- If a life is lost:
+  - The player immediately changes back to `eevee.png`.
+  - All special properties are removed.
+- If the player's lives reach `0` after bomb damage, the game ends immediately.
+
+## 8. Screens and flow
+
+- The start screen includes the goal text: `Score 100 points to beat the level.`
+- Gameplay background music uses `background_music.mp3`.
+- Background music plays only during active gameplay.
+- Background music stops on:
+  - Start screen
+  - Exit
+  - Game over
+  - Congratulations screen
+- The game over screen shows the final score and a play-again button.
+- The win screen appears when total score reaches `100`.
+- The win screen plays `cheer.m4a` `2` times.
+- Entering the win screen resets the individual snack bars to `0`.
+- While the win screen is visible, the total score and lives remain visible until the player presses continue.
+- Pressing continue returns the game to the initial start screen state.
+
+## 9. World atmosphere
+
+- The game world has three ambient systems:
   - Day-night cycle
   - Weather cycle
-  - Random doodad and prop events
-- The sky has moving clouds with different depth and speed.
-- The game world has a persistent foreground that does not change with sky or weather:
+  - Random doodad / prop events
+- The world keeps a persistent foreground:
   - Brown hills in the distance
   - A green grass strip where the player moves
 
 ### Day-night cycle
 
-- The day-night cycle uses `6` phases.
-- Each day-night phase lasts `12` seconds.
-- The phases are:
-  - Morning
-  - Noon
-  - Sunset
-  - Evening
-  - Midnight
-  - Dawn
-- Morning uses a more purple-blue sky palette.
-- Noon uses a blue-to-white sky palette.
-- Sunset uses an orange-yellow-light-blue sky palette.
-- Evening uses a dark blue sky palette.
-- Midnight uses a black night sky with visible stars.
-- Some midnight stars pulse so the night sky twinkles.
-- Dawn uses a black-dark-blue-purple sky palette.
-- The sun appears only during the `Noon` phase.
-- At the start of `Noon`, the sun begins near the top-left of the screen.
-- By the end of `Noon`, the sun reaches the top-right edge of the screen.
-- The sun moves in a straight line during the full `12` seconds.
-- The moon appears only during the `Midnight` phase.
-- At the start of `Midnight`, the moon begins near the top-left of the screen.
-- By the end of `Midnight`, the moon reaches the top-right edge of the screen.
-- The moon moves in a straight line during the full `12` seconds.
+- Full cycle length: `72` seconds.
+- The cycle has `2` phases:
+  - Day: `36` seconds
+  - Night: `36` seconds
+- The visuals interpolate smoothly instead of hard-switching.
+- Day moves from a dawn-like purple/blue start into bright daytime, then into sunset orange/red at the end.
+- Night moves from sunset into deep night, then into a blue/purple pre-dawn transition.
+- The lower dawn horizon stays darker blue near the hills instead of washing out to a pale light-blue strip.
+- Stars are visible at night and are strongest around the darkest middle-of-night section.
 
-### Weather cycle
+### Sun and moon
 
-- Weather does not follow the day-night timer.
-- Weather runs on its own separate loop.
-- Each weather phase lasts `8` seconds.
-- The weather phases are:
-  - Clear sky
-  - Cloud
-  - Much more cloud
-  - Dark cloud
-  - Light cloud
-  - Strong wind with fast-moving clouds
-- After the strong-wind phase, the weather loops back to clear sky.
+- The sun appears only during the Day phase.
+- The moon appears only during the Night phase.
+- Each waits `12` seconds after its phase starts.
+- Each then travels for `12` seconds from fully off-screen left to fully off-screen right.
+- Both fade in and out gently so they do not pop in or out.
+- Both move in a straight line.
+
+### Weather
+
+- Weather runs on its own timer and does not use the day-night timer.
+- There are `3` cloud depth layers:
+  - Far: `30s`
+  - Mid: `22s`
+  - Near: `14s`
+- Once a cloud spawns, it remains visible until its full travel finishes.
+- Cloud opacity cycles every `8` seconds through:
+  - `0.25`
+  - `0.75`
+  - `1`
+  - `0.5`
+  - `0`
+  - `0.25`
+- Cloud frequency cycles every `6` seconds through:
+  - Low
+  - Medium
+  - High
+  - Intense
+  - High
+  - Medium
+  - Then repeats
 
 ### Doodads and props
 
-- A frog can jump across the grass from right to left.
-- A flock of birds can fly across the sky from left to right.
-- These doodad and prop events happen on random timers during gameplay.
+- Frogs can hop across the grass.
+- A frog may start from either the left or the right.
+- Frogs move with repeated hopping instead of sliding.
+- Birds appear in flocks and fly from right to left.
+- Each flock uses a random bird color.
+- Each flock contains a random number of birds up to `10`.
+- Birds use individual small wave motion while flying.
+- Frog and bird events spawn on random timers during gameplay.
 
-## Files allowed to change
+## 10. Files allowed to change
 
 Codex may edit:
 

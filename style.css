@@ -244,15 +244,31 @@ h1 {
   min-height: 100dvh;
   overflow: hidden;
   border-left: 5px solid rgba(255, 255, 255, 0.92);
-  background: linear-gradient(#8fe0ff 0%, #e5f9ff 58%, #a7e77a 59%, #66c74c 100%);
+  background:
+    linear-gradient(
+      180deg,
+      var(--sky-1) 0%,
+      var(--sky-2) 28%,
+      var(--sky-3) 54%,
+      var(--sky-4) 78%,
+      var(--sky-5) 100%
+    );
   touch-action: none;
-  transition: background 1400ms ease-in-out, filter 1400ms ease-in-out;
+  transition: filter 1400ms ease-in-out;
+  --sky-1: rgb(84, 74, 160);
+  --sky-2: rgb(114, 133, 223);
+  --sky-3: rgb(177, 201, 255);
+  --sky-4: rgb(216, 239, 255);
+  --sky-5: rgb(244, 251, 255);
   --sun-x: 10%;
   --sun-y: 10%;
   --moon-x: 82%;
   --moon-y: 10%;
   --sun-opacity: 0;
   --moon-opacity: 0;
+  --star-opacity: 0;
+  --star-twinkle-opacity: 0;
+  --cloud-opacity: 0.25;
   --cloud-color: rgba(255, 255, 255, 0.94);
   --cloud-highlight: rgba(255, 255, 255, 0.9);
 }
@@ -301,94 +317,13 @@ h1 {
   box-shadow: inset -10px 0 24px rgba(36, 48, 71, 0.08);
 }
 
-.game-area.day-morning {
-  background: linear-gradient(180deg, #544aa0 0%, #7285df 28%, #b1c9ff 54%, #daf4ff 100%);
-}
-
-.game-area.day-noon {
-  background: linear-gradient(180deg, #58c5ff 0%, #92deff 34%, #f7fdff 100%);
-}
-
-.game-area.day-sunset {
-  background: linear-gradient(180deg, #ff9648 0%, #ffc34c 26%, #ffe792 50%, #9bdcff 100%);
-}
-
-.game-area.day-evening {
-  background: linear-gradient(180deg, #0f2d6d 0%, #1a3e86 42%, #7ba2d3 100%);
-}
-
-.game-area.day-midnight {
-  background: linear-gradient(180deg, #01040d 0%, #040b1d 40%, #18335a 100%);
-}
-
-.game-area.day-dawn {
-  background: linear-gradient(180deg, #060816 0%, #12244f 36%, #4c2d79 62%, #8c67b4 76%, #bee8ff 100%);
-}
-
-.game-area.weather-clear {
-  filter: saturate(1.03) brightness(1.02);
-  --cloud-color: rgba(255, 255, 255, 0.86);
-  --cloud-highlight: rgba(255, 255, 255, 0.8);
-}
-
-.game-area.weather-clear .cloud {
-  opacity: 0.08;
-}
-
-.game-area.weather-cloud {
-  --cloud-color: rgba(255, 255, 255, 0.92);
-  --cloud-highlight: rgba(255, 255, 255, 0.86);
-}
-
-.game-area.weather-cloud .cloud {
-  opacity: 0.38;
-}
-
-.game-area.weather-more-cloud {
-  filter: saturate(0.98) brightness(0.99);
-  --cloud-color: rgba(244, 248, 255, 0.94);
-  --cloud-highlight: rgba(244, 248, 255, 0.88);
-}
-
-.game-area.weather-more-cloud .cloud {
-  opacity: 0.72;
-}
-
-.game-area.weather-dark-cloud {
-  filter: saturate(0.84) brightness(0.88);
-  --cloud-color: rgba(88, 101, 129, 0.97);
-  --cloud-highlight: rgba(124, 137, 165, 0.9);
-}
-
-.game-area.weather-dark-cloud .cloud {
-  opacity: 0.9;
-}
-
-.game-area.weather-light-cloud {
-  --cloud-color: rgba(255, 255, 255, 0.88);
-  --cloud-highlight: rgba(255, 255, 255, 0.8);
-}
-
-.game-area.weather-light-cloud .cloud {
-  opacity: 0.28;
-}
-
-.game-area.weather-windy {
-  filter: saturate(1) brightness(0.97);
-  --cloud-color: rgba(238, 244, 255, 0.9);
-  --cloud-highlight: rgba(255, 255, 255, 0.84);
-}
-
-.game-area.weather-windy .cloud {
-  opacity: 0.58;
-  animation-duration: calc(var(--cloud-duration, 28s) * 0.42);
-}
-
 .sky-stars,
 .sun,
 .moon,
 .rain-layer,
 .lightning-layer,
+.cloud-layer,
+.plant-layer,
 .ambient-props {
   position: absolute;
   pointer-events: none;
@@ -397,8 +332,7 @@ h1 {
 .sky-stars {
   inset: 0;
   z-index: 0;
-  opacity: 0;
-  transition: opacity 1200ms ease-in-out;
+  opacity: var(--star-opacity);
   background:
     radial-gradient(circle at 14% 18%, rgba(255, 255, 255, 0.95) 0 1px, transparent 1.6px),
     radial-gradient(circle at 28% 36%, rgba(255, 255, 255, 0.92) 0 1.2px, transparent 1.8px),
@@ -414,7 +348,7 @@ h1 {
   content: "";
   position: absolute;
   inset: 0;
-  opacity: 0;
+  opacity: var(--star-twinkle-opacity);
   background:
     radial-gradient(circle at 18% 24%, rgba(255, 255, 255, 0.95) 0 2px, transparent 2.8px),
     radial-gradient(circle at 41% 17%, rgba(255, 255, 255, 0.86) 0 1.6px, transparent 2.4px),
@@ -431,15 +365,6 @@ h1 {
   animation: starPulse 3.1s ease-in-out infinite reverse;
 }
 
-.game-area.day-midnight .sky-stars {
-  opacity: 0.96;
-}
-
-.game-area.day-midnight .sky-stars::before,
-.game-area.day-midnight .sky-stars::after {
-  opacity: 1;
-}
-
 .sun,
 .moon {
   width: 118px;
@@ -447,8 +372,6 @@ h1 {
   border-radius: 50%;
   transform: translate(-50%, -50%);
   transition:
-    left 1200ms ease-in-out,
-    top 1200ms ease-in-out,
     opacity 1200ms ease-in-out,
     filter 1200ms ease-in-out;
 }
@@ -492,6 +415,18 @@ h1 {
   overflow: hidden;
 }
 
+.cloud-layer {
+  inset: 0;
+  z-index: 2;
+  overflow: hidden;
+}
+
+.plant-layer {
+  inset: 0;
+  z-index: 5;
+  overflow: hidden;
+}
+
 .ambient-prop {
   position: absolute;
   user-select: none;
@@ -499,20 +434,177 @@ h1 {
   text-shadow: 0 3px 8px rgba(36, 48, 71, 0.18);
 }
 
+.carnivorous-plant {
+  position: absolute;
+  left: 50%;
+  bottom: 24px;
+  width: 90px;
+  height: 180px;
+  transform: translateX(-50%);
+  transform-origin: 50% 100%;
+  will-change: transform;
+  pointer-events: none;
+}
+
+.carnivorous-plant::before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: 0;
+  width: 18px;
+  height: 132px;
+  border-radius: 999px;
+  transform: translateX(-50%);
+  background: linear-gradient(180deg, #74d85f 0%, #4cac3f 42%, #2f7f37 100%);
+  box-shadow:
+    inset 0 0 0 2px rgba(255, 255, 255, 0.18),
+    0 4px 10px rgba(31, 78, 39, 0.18);
+}
+
+.carnivorous-plant::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: 108px;
+  width: 70px;
+  height: 52px;
+  transform: translateX(-50%);
+  border-radius: 52% 52% 46% 46% / 62% 62% 38% 38%;
+  background:
+    radial-gradient(circle at 50% 72%, rgba(255, 255, 255, 0.18) 0 10%, transparent 11%),
+    linear-gradient(180deg, #9dff78 0%, #57c845 58%, #318635 100%);
+  box-shadow:
+    0 8px 16px rgba(31, 78, 39, 0.2),
+    inset 0 -4px 0 rgba(0, 0, 0, 0.1);
+}
+
+.plant-head {
+  position: absolute;
+  left: 50%;
+  top: 0;
+  width: 90px;
+  height: 120px;
+  transform: translateX(-50%);
+  border-radius: 50% 50% 42% 42% / 72% 72% 38% 38%;
+  background:
+    radial-gradient(circle at 50% 22%, #d8ffb7 0 12%, transparent 13%),
+    linear-gradient(180deg, #9eff80 0%, #5ccb49 55%, #2f7f34 100%);
+  box-shadow:
+    0 4px 12px rgba(28, 82, 37, 0.22),
+    inset 0 -4px 0 rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+}
+
+.plant-head::before,
+.plant-head::after {
+  content: "";
+  position: absolute;
+  top: 34px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #16351a;
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.18);
+}
+
+.plant-head::before {
+  left: 16px;
+}
+
+.plant-head::after {
+  right: 16px;
+}
+
+.plant-mouth {
+  position: absolute;
+  left: 50%;
+  top: 10px;
+  width: 64px;
+  height: 56px;
+  transform: translateX(-50%);
+  border-radius: 52% 52% 42% 42% / 100% 100% 28% 28%;
+  background: linear-gradient(180deg, #8df47a 0%, #49bc44 38%, #2c7d32 100%);
+  box-shadow:
+    inset 0 -4px 0 rgba(0, 0, 0, 0.12),
+    0 4px 10px rgba(31, 78, 39, 0.18);
+}
+
+.plant-mouth::before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 18px;
+  width: 56px;
+  height: 28px;
+  transform: translateX(-50%);
+  border-radius: 0 0 30px 30px;
+  background: linear-gradient(180deg, #9b201d 0%, #d83632 100%);
+  box-shadow: inset 0 3px 0 rgba(255, 232, 212, 0.38);
+}
+
+.plant-mouth::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 10px;
+  width: 18px;
+  height: 18px;
+  transform: translateX(-50%);
+  border-radius: 50% 50% 40% 40%;
+  background: linear-gradient(180deg, #ffd3ca 0%, #f28b7d 100%);
+  box-shadow: inset 0 -2px 0 rgba(0, 0, 0, 0.06);
+}
+
+.carnivorous-plant.chomp .plant-head {
+  animation: plantHeadSnap 220ms ease-out 1;
+}
+
+.carnivorous-plant.chomp .plant-mouth {
+  animation: plantBite 220ms ease-out 1;
+}
+
 .ambient-frog {
+  left: auto;
   right: -70px;
   bottom: 6%;
   font-size: 2.5rem;
-  animation: frogTraverse var(--ambient-duration, 8s) linear forwards;
+  animation: frogTraverse var(--ambient-duration, 9s) linear forwards;
 }
 
 .ambient-birds {
-  left: -200px;
+  right: -240px;
   top: 14%;
-  font-size: 1.5rem;
-  letter-spacing: 0.12em;
+  display: flex;
+  align-items: flex-start;
+  gap: 0.15em;
+  font-size: 1.45rem;
   opacity: 0.95;
-  animation: birdTraverse var(--ambient-duration, 10s) linear forwards;
+  filter: drop-shadow(0 2px 3px rgba(36, 48, 71, 0.16));
+  animation: birdTraverse var(--ambient-duration, 11s) linear forwards;
+}
+
+.ambient-bird {
+  display: inline-block;
+  transform: scale(var(--bird-scale, 1));
+  animation: birdFlap var(--bird-wave-duration, 2s) ease-in-out infinite;
+  animation-delay: var(--bird-wave-offset, 0s);
+}
+
+.debug-overlay {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  z-index: 9;
+  padding: 10px 12px;
+  border-radius: 14px;
+  color: #ffffff;
+  font-size: 0.9rem;
+  font-weight: 800;
+  line-height: 1.35;
+  white-space: pre-line;
+  background: rgba(20, 32, 54, 0.52);
+  box-shadow: 0 8px 20px rgba(18, 27, 43, 0.16);
+  backdrop-filter: blur(5px);
 }
 
 .fire-hint {
@@ -547,9 +639,10 @@ h1 {
   border-radius: 999px;
   z-index: 2;
   background: var(--cloud-color);
-  animation: cloudDrift var(--cloud-duration, 28s) linear infinite;
+  opacity: var(--cloud-opacity);
+  animation: cloudDrift var(--cloud-duration, 22s) linear forwards;
   will-change: transform;
-  transition: opacity 900ms ease, filter 900ms ease, background 900ms ease;
+  transition: opacity 700ms linear, background 700ms linear;
 }
 
 .cloud::before,
@@ -574,50 +667,20 @@ h1 {
   top: -18px;
 }
 
-.cloud-one {
-  top: 11%;
-  animation-delay: -9s;
-}
-
-.cloud-two {
-  top: 21%;
-  animation-delay: -22s;
-}
-
-.cloud-three {
-  top: 31%;
-  animation-delay: -4s;
-}
-
-.cloud-four {
-  top: 17%;
-  animation-delay: -15s;
-}
-
-.cloud-five {
-  top: 26%;
-  animation-delay: -11s;
-}
-
-.cloud-six {
-  top: 8%;
-  animation-delay: -27s;
-}
-
 .depth-far {
-  --cloud-duration: 38s;
+  --cloud-duration: 30s;
   width: 98px;
   height: 34px;
 }
 
 .depth-mid {
-  --cloud-duration: 30s;
+  --cloud-duration: 22s;
   width: 132px;
   height: 46px;
 }
 
 .depth-near {
-  --cloud-duration: 22s;
+  --cloud-duration: 14s;
   width: 154px;
   height: 54px;
 }
@@ -819,45 +882,61 @@ h1 {
 
 @keyframes cloudDrift {
   0% {
-    transform: translateX(-180px);
+    transform: translateX(0);
   }
 
   100% {
-    transform: translateX(calc(100vw + 260px));
+    transform: translateX(var(--cloud-travel, 1600px));
   }
 }
 
 @keyframes frogTraverse {
   0% {
-    transform: translateX(0) translateY(0) scaleX(-1);
+    transform: translateX(0) translateY(0) scaleX(var(--frog-scale-x, -1));
   }
 
-  12% {
-    transform: translateX(calc(var(--prop-travel) * 0.12)) translateY(-18px) scaleX(-1);
+  8% {
+    transform: translateX(calc(var(--prop-travel) * 0.08)) translateY(0) scaleX(var(--frog-scale-x, -1));
   }
 
-  24% {
-    transform: translateX(calc(var(--prop-travel) * 0.24)) translateY(0) scaleX(-1);
+  14% {
+    transform: translateX(calc(var(--prop-travel) * 0.14)) translateY(-22px) scaleX(var(--frog-scale-x, -1));
   }
 
-  38% {
-    transform: translateX(calc(var(--prop-travel) * 0.38)) translateY(-16px) scaleX(-1);
+  20% {
+    transform: translateX(calc(var(--prop-travel) * 0.2)) translateY(0) scaleX(var(--frog-scale-x, -1));
   }
 
-  52% {
-    transform: translateX(calc(var(--prop-travel) * 0.52)) translateY(0) scaleX(-1);
+  32% {
+    transform: translateX(calc(var(--prop-travel) * 0.2)) translateY(0) scaleX(var(--frog-scale-x, -1));
   }
 
-  68% {
-    transform: translateX(calc(var(--prop-travel) * 0.68)) translateY(-14px) scaleX(-1);
+  40% {
+    transform: translateX(calc(var(--prop-travel) * 0.34)) translateY(-19px) scaleX(var(--frog-scale-x, -1));
   }
 
-  84% {
-    transform: translateX(calc(var(--prop-travel) * 0.84)) translateY(0) scaleX(-1);
+  48% {
+    transform: translateX(calc(var(--prop-travel) * 0.46)) translateY(0) scaleX(var(--frog-scale-x, -1));
+  }
+
+  60% {
+    transform: translateX(calc(var(--prop-travel) * 0.46)) translateY(0) scaleX(var(--frog-scale-x, -1));
+  }
+
+  70% {
+    transform: translateX(calc(var(--prop-travel) * 0.64)) translateY(-17px) scaleX(var(--frog-scale-x, -1));
+  }
+
+  78% {
+    transform: translateX(calc(var(--prop-travel) * 0.76)) translateY(0) scaleX(var(--frog-scale-x, -1));
+  }
+
+  90% {
+    transform: translateX(calc(var(--prop-travel) * 0.76)) translateY(0) scaleX(var(--frog-scale-x, -1));
   }
 
   100% {
-    transform: translateX(var(--prop-travel)) translateY(-10px) scaleX(-1);
+    transform: translateX(var(--prop-travel)) translateY(-15px) scaleX(var(--frog-scale-x, -1));
   }
 }
 
@@ -867,19 +946,99 @@ h1 {
   }
 
   25% {
-    transform: translateX(calc(var(--prop-travel) * 0.25)) translateY(-10px);
+    transform: translateX(calc(var(--prop-travel) * 0.25)) translateY(-4px);
   }
 
   50% {
-    transform: translateX(calc(var(--prop-travel) * 0.5)) translateY(4px);
+    transform: translateX(calc(var(--prop-travel) * 0.5)) translateY(2px);
   }
 
   75% {
-    transform: translateX(calc(var(--prop-travel) * 0.75)) translateY(-8px);
+    transform: translateX(calc(var(--prop-travel) * 0.75)) translateY(-3px);
   }
 
   100% {
-    transform: translateX(var(--prop-travel)) translateY(2px);
+    transform: translateX(var(--prop-travel)) translateY(1px);
+  }
+}
+
+@keyframes birdFlap {
+  0%,
+  100% {
+    transform: translateY(0) scale(var(--bird-scale, 1));
+  }
+
+  25% {
+    transform: translateY(calc(var(--bird-wave-height, 8px) * -1)) scale(var(--bird-scale, 1));
+  }
+
+  50% {
+    transform: translateY(calc(var(--bird-wave-height, 8px) * -0.35)) scale(var(--bird-scale, 1));
+  }
+
+  75% {
+    transform: translateY(calc(var(--bird-wave-height, 8px) * -0.82)) scale(var(--bird-scale, 1));
+  }
+}
+
+@keyframes plantIdle {
+  0%,
+  100% {
+    transform: translate(-50%, -100%) rotate(-1deg);
+  }
+
+  25% {
+    transform: translate(-50%, -100%) rotate(1.5deg);
+  }
+
+  50% {
+    transform: translate(-50%, -100%) rotate(-0.5deg);
+  }
+
+  75% {
+    transform: translate(-50%, -100%) rotate(1deg);
+  }
+}
+
+@keyframes plantChomp {
+  0% {
+    transform: translate(-50%, -100%) scale(1);
+  }
+
+  45% {
+    transform: translate(-50%, -100%) scale(1.05);
+  }
+
+  100% {
+    transform: translate(-50%, -100%) scale(1);
+  }
+}
+
+@keyframes plantHeadSnap {
+  0% {
+    transform: translateX(-50%) rotate(0deg);
+  }
+
+  45% {
+    transform: translateX(-50%) rotate(-10deg);
+  }
+
+  100% {
+    transform: translateX(-50%) rotate(0deg);
+  }
+}
+
+@keyframes plantBite {
+  0% {
+    transform: translateX(-50%) scaleY(1);
+  }
+
+  45% {
+    transform: translateX(-50%) scaleY(1.18);
+  }
+
+  100% {
+    transform: translateX(-50%) scaleY(1);
   }
 }
 
@@ -910,6 +1069,13 @@ body.playing {
 
   .fire-hint {
     font-size: 0.95rem;
+  }
+
+  .debug-overlay {
+    top: 12px;
+    right: 12px;
+    font-size: 0.82rem;
+    padding: 8px 10px;
   }
 
   .fire-timer {
@@ -989,6 +1155,13 @@ body.playing {
     font-size: 0.9rem;
   }
 
+  .debug-overlay {
+    top: 10px;
+    right: 10px;
+    font-size: 0.74rem;
+    padding: 7px 9px;
+  }
+
   .fire-timer {
     font-size: 1.35rem;
   }
@@ -1040,6 +1213,10 @@ body.playing {
   .sky-stars,
   .lightning-layer,
   .ambient-props {
+    display: none;
+  }
+
+  .debug-overlay {
     display: none;
   }
 
