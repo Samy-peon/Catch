@@ -21,7 +21,6 @@ const fireTimerDisplay = document.getElementById("fireTimer");
 const cloudLayer = document.getElementById("cloudLayer");
 const plantLayer = document.getElementById("plantLayer");
 const ambientPropsLayer = document.getElementById("ambientProps");
-const debugOverlay = document.getElementById("debugOverlay");
 const sunElement = gameArea.querySelector(".sun");
 const moonElement = gameArea.querySelector(".moon");
 const startButton = document.getElementById("startButton");
@@ -156,12 +155,6 @@ let dayNightCycleStartedAt = performance.now();
 let weatherCycleStartedAt = performance.now();
 let nextFrogAt = 0;
 let nextBirdFlockAt = 0;
-let currentDayPhaseDebug = "";
-let currentDayRemainingMs = 0;
-let currentCloudOpacityDebug = "";
-let currentCloudOpacityRemainingMs = 0;
-let currentCloudFrequencyDebug = "";
-let currentCloudFrequencyRemainingMs = 0;
 let nextCloudSpawnAt = createCloudSpawnState();
 
 // Put the basket in the center when the page loads.
@@ -1093,7 +1086,6 @@ function resetWorldEnvironment() {
 function updateWorldEnvironment(currentTime) {
   updateDayNightCycle(currentTime);
   updateWeatherCycle(currentTime);
-  updateDebugOverlay();
 }
 
 function updateDayNightCycle(currentTime) {
@@ -1103,8 +1095,6 @@ function updateDayNightCycle(currentTime) {
 
   applyInterpolatedDayNight(phaseState.phase, phaseProgress);
   updateCelestialPositions(phaseState.phase.name, phaseState.elapsedInPhase, phaseState.phase.duration);
-  currentDayPhaseDebug = phaseState.phase.name;
-  currentDayRemainingMs = phaseState.phase.duration - phaseState.elapsedInPhase;
 }
 
 function updateWeatherCycle(currentTime) {
@@ -1115,8 +1105,6 @@ function updateWeatherCycle(currentTime) {
   const cloudOpacity = cloudOpacityCycle[opacityIndex];
 
   gameArea.style.setProperty("--cloud-opacity", String(cloudOpacity));
-  currentCloudOpacityDebug = String(cloudOpacity);
-  currentCloudOpacityRemainingMs = weatherPhaseDuration - opacityElapsedInPhase;
 
   const frequencyCycleDuration = cloudFrequencyCycle.length * cloudFrequencyDuration;
   const frequencyElapsedInCycle = (currentTime - weatherCycleStartedAt) % frequencyCycleDuration;
@@ -1125,8 +1113,6 @@ function updateWeatherCycle(currentTime) {
   const frequencyKey = cloudFrequencyCycle[frequencyIndex];
 
   spawnCloudsForFrequency(currentTime, frequencyKey);
-  currentCloudFrequencyDebug = frequencyKey;
-  currentCloudFrequencyRemainingMs = cloudFrequencyDuration - frequencyElapsedInPhase;
 }
 
 function applyInterpolatedDayNight(phase, progress) {
@@ -1254,28 +1240,6 @@ function getDayNightPhaseState(elapsedInCycle) {
   };
 }
 
-function updateDebugOverlay() {
-  if (!debugOverlay) {
-    return;
-  }
-
-  const daySeconds = formatDebugSeconds(currentDayRemainingMs);
-  const cloudOpacitySeconds = formatDebugSeconds(currentCloudOpacityRemainingMs);
-  const cloudFrequencySeconds = formatDebugSeconds(currentCloudFrequencyRemainingMs);
-  debugOverlay.textContent =
-    "Day: " + formatDebugLabel(currentDayPhaseDebug) + " " + daySeconds + "s"
-    + "\nCloud opacity: " + currentCloudOpacityDebug + " " + cloudOpacitySeconds + "s"
-    + "\nCloud freq: " + formatDebugLabel(currentCloudFrequencyDebug) + " " + cloudFrequencySeconds + "s";
-}
-
-function formatDebugSeconds(milliseconds) {
-  return (Math.max(milliseconds, 0) / 1000).toFixed(1);
-}
-
-function formatDebugLabel(label) {
-  return String(label || "").replace(/-/g, " ");
-}
-
 function getCelestialSize(element, fallbackSize) {
   if (!element) {
     return fallbackSize;
@@ -1332,10 +1296,6 @@ function resetCloudSystem(currentTime) {
   nextCloudSpawnAt.mid = currentTime + randomBetween(2200, 4200);
   nextCloudSpawnAt.near = currentTime + randomBetween(4200, 6400);
   gameArea.style.setProperty("--cloud-opacity", String(cloudOpacityCycle[0]));
-  currentCloudOpacityDebug = String(cloudOpacityCycle[0]);
-  currentCloudOpacityRemainingMs = weatherPhaseDuration;
-  currentCloudFrequencyDebug = cloudFrequencyCycle[0];
-  currentCloudFrequencyRemainingMs = cloudFrequencyDuration;
 }
 
 function spawnCloudsForFrequency(currentTime, frequencyKey) {

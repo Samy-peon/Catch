@@ -590,23 +590,6 @@ h1 {
   animation-delay: var(--bird-wave-offset, 0s);
 }
 
-.debug-overlay {
-  position: absolute;
-  top: 16px;
-  right: 16px;
-  z-index: 9;
-  padding: 10px 12px;
-  border-radius: 14px;
-  color: #ffffff;
-  font-size: 0.9rem;
-  font-weight: 800;
-  line-height: 1.35;
-  white-space: pre-line;
-  background: rgba(20, 32, 54, 0.52);
-  box-shadow: 0 8px 20px rgba(18, 27, 43, 0.16);
-  backdrop-filter: blur(5px);
-}
-
 .fire-hint {
   position: absolute;
   top: 22px;
@@ -1071,13 +1054,6 @@ body.playing {
     font-size: 0.95rem;
   }
 
-  .debug-overlay {
-    top: 12px;
-    right: 12px;
-    font-size: 0.82rem;
-    padding: 8px 10px;
-  }
-
   .fire-timer {
     font-size: 1.75rem;
   }
@@ -1155,13 +1131,6 @@ body.playing {
     font-size: 0.9rem;
   }
 
-  .debug-overlay {
-    top: 10px;
-    right: 10px;
-    font-size: 0.74rem;
-    padding: 7px 9px;
-  }
-
   .fire-timer {
     font-size: 1.35rem;
   }
@@ -1216,9 +1185,6 @@ body.playing {
     display: none;
   }
 
-  .debug-overlay {
-    display: none;
-  }
 
   .hint {
     margin-top: 8px;
